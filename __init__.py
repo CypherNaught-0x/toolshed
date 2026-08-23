@@ -148,7 +148,10 @@ except ImportError:  # pragma: no cover - direct loader fallback
         _restore_full_tools,
     )
 
-from .__about__ import __version__
+try:
+    from .__about__ import __version__
+except ImportError:  # flat Hermes plugin loader
+    from __about__ import __version__
 
 logger = logging.getLogger(__name__)
 

@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "toolshed"
 version = "0.1.0"
 description = "An adaptive tool-surface proxy for Hermes — reduces repeated tool-schema overhead while preserving on-demand recovery."
-readme = "../README.md"
+readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [{ name = "Toolshed contributors" }]
@@ -24,14 +24,15 @@ Homepage = "https://github.com/TOOLSHED-ORG/toolshed"
 ADR-Docs = "https://github.com/TOOLSHED-ORG/toolshed/tree/main/adr"
 
 [tool.setuptools]
-packages = ["toolshed", "toolshed.vela_learning", "toolshed.vela_telemetry"]
+package-dir = {"" = "src"}
+packages = ["toolshed", "toolshed.learning_store", "toolshed.telemetry_store"]
 
 [tool.ruff]
 line-length = 110
 target-version = "py310"
 
 [tool.pytest.ini_options]
-testpaths = ["../tests"]
+testpaths = ["tests"]
 
 [tool.pyright]
 pythonVersion = "3.10"

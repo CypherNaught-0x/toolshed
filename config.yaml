@@ -1,0 +1,41 @@
+# Hermes Tool Router v2 configuration — disabled until explicitly enabled.
+global:
+  enabled: false
+  routing_scope: first_turn
+  expansion_mode: monotonic
+  shrink_mid_session: false
+  floor_toolsets: ["terminal", "file", "skills", "memory", "web"]
+  deterministic_rules_enabled: true
+  confidence_threshold: 0.90
+  router_timeout_ms: 750
+  router_hard_timeout_ms: 1200
+  fail_open: true
+  auto_recover_registered_tools: true
+  classifier:
+    enabled: false
+    provider: null  # defaults to direct deepseek when enabled
+    model: null     # defaults to deepseek-chat
+    base_url: null
+    api_key_env: null
+  metrics:
+    enabled: true
+    local_only: true
+    retain_days: 30
+
+profiles:
+  # Beispiel für ein Profil (Name = Hermes-Profilname):
+  mein-agent:
+    enabled: true
+    # C-arm experiment flag (Design-Skizze Abschnitt 7, 2026-08-23):
+    # injects the frozen capability index once per session after a successful
+    # narrowing. False = B-arm behavior, byte-identical to before.
+    capability_index: false
+
+# --- Shadow learning bridge (V2, optional) ---
+shadow:
+  enabled: true
+  store_path: learning/profiles.json
+  events_path: learning/events.jsonl
+  floor_toolsets: ["terminal", "file", "skills", "memory", "web"]
+  max_warm: 8
+  channel: cli
