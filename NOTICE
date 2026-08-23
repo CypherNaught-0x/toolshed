@@ -11,3 +11,10 @@ Significant modifications and extensions (see adr/):
 - Telemetry/event pipeline (JSONL) with precision/recall metrics
 
 Licensed under the MIT License.
+
+Hinweis (2026-08-23): Das ursprüngliche Upstream-Repository
+(https://github.com/JonathanRivera/hermes-token-router) ist zum Zeitpunkt
+dieses Releases nicht mehr öffentlich erreichbar (404). Die MIT-Lizenz und
+Copyright-Angabe stammen aus dem lokal archivierten Fork-Stand, auf dem
+Toolshed aufbaut. Attribution bleibt bestehen, unabhängig von der
+Verfügbarkeit des Upstreams.
