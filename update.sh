@@ -58,24 +58,31 @@ jadd() { RESULT_LOG="$RESULT_LOG$1\n"; }
 # Default-Auflösung (ohne --home): Bei --user wird das Home des ZIELUSERS aus
 # /etc/passwd geholt — nie $HOME des Aufrufers (Fix für Multi-User-Bug aus
 # Helper-Review 2026-08-23). Ohne --user gilt der eigene Kontext.
+# USER_HOME = echtes Home des Zielusers; die Suchkette nutzt NUR noch dieses
+# (Canary-Fund v0.1.5: $HOME-des-Aufrufers trifft im root-Lauf nie den
+# Zieluser-Layout, alle 4 Einträge missen).
 TH="${TARGET_HOME:-}"
+USER_HOME="$HOME"
 if [ -z "$TH" ]; then
   if [ -n "$TARGET_USER" ]; then
-    TH="$(getent passwd "$TARGET_USER" | cut -d: -f6)"
-    if [ -z "$TH" ] || [ "$TH" = "$TARGET_USER" ] || [ ! -d "$TH" ]; then
+    USER_HOME="$(getent passwd "$TARGET_USER" | cut -d: -f6)"
+    if [ -z "$USER_HOME" ] || [ "$USER_HOME" = "$TARGET_USER" ] || [ ! -d "$USER_HOME" ]; then
       echo "✗ cannot resolve home for target user: $TARGET_USER — pass --home explicitly" >&2
       exit 4
     fi
-    TH="$TH/.hermes"
+    TH="$USER_HOME/.hermes"
   else
     TH="$HOME/.hermes"
   fi
+elif [ -n "$TARGET_USER" ]; then
+  USER_HOME="$(getent passwd "$TARGET_USER" | cut -d: -f6)"
+  [ -z "$USER_HOME" ] || [ "$USER_HOME" = "$TARGET_USER" ] && USER_HOME="$TH"
 fi
 HERMES_BIN="$(AS_USER bash -c 'command -v hermes' 2>/dev/null || true)"
 if [ -z "$HERMES_BIN" ]; then
   for C in "$TH/hermes-agent/venv/bin/hermes" \
-           "$HOME/.hermes/hermes-agent/venv/bin/hermes" \
-           "$HOME/src/hermes-agent/venv/bin/hermes" \
+           "$USER_HOME/.hermes/hermes-agent/venv/bin/hermes" \
+           "$USER_HOME/src/hermes-agent/venv/bin/hermes" \
            "$TH/src/hermes-agent/venv/bin/hermes"; do
     [ -x "$C" ] && HERMES_BIN="$C" && break
   done
