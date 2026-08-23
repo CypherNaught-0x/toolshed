@@ -30,9 +30,15 @@ while [ $# -gt 0 ]; do
   esac
 done
 # D4: resolve the target .hermes dir — default $HOME/.hermes, or --home override
-# --home accepts EITHER the parent dir (~/) or the .hermes dir itself
+# --home accepts EITHER the parent dir (~/) or the .hermes dir itself.
+# Detection: if a plugins/ or config.yaml exists directly under the given path,
+# it IS the .hermes dir; otherwise append .hermes.
 if [ -n "$HERMES_HOME" ]; then
-  [ -d "$HERMES_HOME/.hermes" ] && HERMES_DIR="$HERMES_HOME/.hermes" || HERMES_DIR="$HERMES_HOME"
+  if [ -d "$HERMES_HOME/plugins" ] || [ -f "$HERMES_HOME/config.yaml" ]; then
+    HERMES_DIR="$HERMES_HOME"
+  else
+    HERMES_DIR="$HERMES_HOME/.hermes"
+  fi
 else
   HERMES_DIR="$HOME/.hermes"
 fi
@@ -109,7 +115,7 @@ else
   # stale-grant check: only look at the profile-local config (never the global
   # hermes config — reading unrelated config files trips security scanners and
   # is unnecessary: the grant lives next to this plugin's own registration)
-  GRANT_CFG="$HOME/.hermes/profiles/$PROFILE/config.yaml"
+  GRANT_CFG="$HERMES_DIR/profiles/$PROFILE/config.yaml"
   if [ -f "$GRANT_CFG" ] && grep -q "allow_tool_override: true" "$GRANT_CFG" && [ ! -d "$(dirname "$CFG")" ]; then
     warn "stale grant: allow_tool_override set but plugin directory missing"
   else ok "no stale grant detected"; fi
