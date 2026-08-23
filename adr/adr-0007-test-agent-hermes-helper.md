@@ -160,3 +160,47 @@ user-systemd ODER den produktiven Gateway-Host.
 - **Offen:** Learning-/Reuse-Persistenz + echter Gateway-Restart (braucht
   systemd-Umgebung); zweiter Agent/Isolation; Update/Rollback/Uninstall.
 
+## Schritt 7 — Isolationstest (2 Profile) ✅ mit 1 Befund (2026-08-23, ~14:20)
+
+Setup: `profile create agenta/agentb --clone` → **Befund F7:** `profile clone`
+kopiert KEINE Plugins — jedes Profil braucht eigene Installation. Das ist das
+korrekte Isolationsmodell (bewusste Opt-in-Pro-Instanz), muss aber ins README.
+
+Beide Profile: eigener Install ✅, eigener Grant ✅, eigene Plugin-Kopie ✅,
+eigene Config ✅.
+
+| Prüfung | Ergebnis |
+|---|---|
+| A routet unabhängig (9.695 in / 2 calls) | ✅ |
+| B routet unabhängig (10.531 in / 2 calls) | ✅ |
+| Grants physisch getrennt (pro Profil-config.yaml) | ✅ |
+| Plugin-Copies physisch getrennt | ✅ |
+| Runtime-Code ohne Fremdpfade | ✅ 0 Treffer in *.py/*.yaml |
+| Contamination False-Positives | 6 Treffer NUR in tests/ci (unsere eigenen Security-Scan-Regeln matchen sich selbst — dokumentiert, kein Bug) |
+
+**F7 (DOKUMENTATION):** `profile clone` übernimmt keine Plugins/Grants/State.
+Gewollte Isolation; README braucht einen „Multi-Agent"-Abschnitt:
+Pro Profil `plugins install` + `enable --allow-tool-override` wiederholen.
+
+## Schritt 8 — Uninstall/Update-Befunde (2026-08-23, ~14:30)
+
+**Uninstall (agenta):** Plugin-Code entfernt ✅, Agent läuft danach normal weiter
+✅ (kein Bruch). **ABER F8 (UX/SECURITY):** Der Grant
+(`plugins.entries.hermes-token-router.allow_tool_override: true`) bleibt in der
+Profil-config.yaml liegen. Nach Reinstall wäre die alte Autorisierung sofort
+wieder wirksam — ohne dass der User neu zustimmt. Für ein Produkt mit
+tools.override inakzeptabel als stiller Zustand. Regel festzulegen:
+Uninstall entfernt Grant ODER meldet explizit „Authorization retained".
+(Upstream-Verhalten von Hermes, nicht Toolshed-eigen — als Issue/Befund führen.)
+
+**Update (agentb, 0.1.0 → 0.1.1):** `--force` reinstall ✅, Version wechselt
+nachweislich ✅, Grant überlebt ✅, Routing funktioniert nach Update ✅.
+**ABER F6 (PACKAGING):** Version war doppelt gepflegt (`__about__.py` im Root
+UND in src/toolshed/) und driftete auseinander (Root 0.1.0, src 0.1.1). Fix:
+Root synchronisiert; langfristig single-source (pyproject als einzige Wahrheit,
+__about__ generieren oder importlib.metadata nutzen).
+
+**Rollback:** Noch nicht getestet — braucht versionierte Artefakte (Tags/
+Releases). Für v0.1: dokumentierter Weg = alte Version via git ref installieren.
+
+
