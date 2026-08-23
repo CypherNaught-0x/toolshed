@@ -1,5 +1,8 @@
 # Toolshed
 
+![How Toolshed works](docs/how-toolshed-works.png)
+
+
 **An adaptive tool-surface proxy for Hermes** — reduces repeated tool-schema
 overhead while preserving on-demand recovery.
 
