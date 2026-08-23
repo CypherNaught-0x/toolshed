@@ -16,7 +16,7 @@
 set -u
 
 PLUGIN_NAME="hermes-token-router"
-JSON=0; PROFILE="default"
+JSON=0; PROFILE="default"; HERMES_HOME=""
 SUPPORTED_MIN_HERMES="0.20"
 RESULT_LOG=""
 FAIL=0; WARN=0
@@ -25,18 +25,28 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --profile) PROFILE="$2"; shift 2 ;;
     --json) JSON=1; shift ;;
+    --home) HERMES_HOME="$2"; shift 2 ;;   # D4: foreign Hermes home (multi-user setups)
     *) shift ;;
   esac
 done
+# D4: resolve the target .hermes dir — default $HOME/.hermes, or --home override
+# --home accepts EITHER the parent dir (~/) or the .hermes dir itself
+if [ -n "$HERMES_HOME" ]; then
+  [ -d "$HERMES_HOME/.hermes" ] && HERMES_DIR="$HERMES_HOME/.hermes" || HERMES_DIR="$HERMES_HOME"
+else
+  HERMES_DIR="$HOME/.hermes"
+fi
+[ -d "$HERMES_DIR" ] || { echo "✗ Hermes home not found: $HERMES_DIR (use --home)"; exit 2; }
 
 jadd() { RESULT_LOG="$RESULT_LOG$1,\n"; }
 ok()   { FAIL=$FAIL;     [ "$JSON" = "0" ] && echo "  ✓ $1"; jadd "{\"check\":\"$1\",\"status\":\"ok\"}"; }
 warn() { WARN=$((WARN+1)); [ "$JSON" = "0" ] && echo "  ! $1"; jadd "{\"check\":\"$1\",\"status\":\"warn\"}"; }
 bad()  { FAIL=$((FAIL+1)); [ "$JSON" = "0" ] && echo "  ✗ $1"; jadd "{\"check\":\"$1\",\"status\":\"fail\"}"; }
+info() { [ "$JSON" = "0" ] && echo "  ℹ $1"; jadd "{\"check\":\"$1\",\"status\":\"info\"}"; }
 
 HERMES_BIN="$(command -v hermes || true)"
 if [ -z "$HERMES_BIN" ]; then
-  for C in "$HOME/src/hermes-agent/venv/bin/hermes" "$HOME/hermes-agent/venv/bin/hermes"; do
+  for C in "$HERMES_DIR/../src/hermes-agent/venv/bin/hermes" "$HERMES_DIR/hermes-agent/venv/bin/hermes" "$HOME/src/hermes-agent/venv/bin/hermes"; do
     [ -x "$C" ] && HERMES_BIN="$C" && break
   done
 fi
@@ -47,8 +57,8 @@ fi
 if [ -z "$HERMES_BIN" ]; then bad "hermes CLI not found"; else ok "Hermes found: $HERMES_BIN"; fi
 
 # 2. toolshed installed + 3. version/commit
-CFG="$(ls -d "$HOME/.hermes/profiles/$PROFILE/plugins/$PLUGIN_NAME/config.yaml" \
-           "$HOME/.hermes/plugins/$PLUGIN_NAME/config.yaml" 2>/dev/null | head -1)"
+CFG="$(ls -d "$HERMES_DIR/profiles/$PROFILE/plugins/$PLUGIN_NAME/config.yaml" \
+           "$HERMES_DIR/plugins/$PLUGIN_NAME/config.yaml" 2>/dev/null | head -1)"
 if [ -z "$CFG" ]; then
   bad "Toolshed not installed (no plugin config found)"
 else
@@ -73,7 +83,7 @@ else
   # 6. mode valid
   MODE=$(grep -m1 '^  mode:' "$CFG" 2>/dev/null | awk '{print $2}')
   if [ "$MODE" = "active" ] || [ "$MODE" = "shadow" ]; then ok "mode: $MODE"
-  elif [ -z "$MODE" ]; then warn "mode not set (defaults to active)"; else bad "unknown mode: $MODE"; fi
+  elif [ -z "$MODE" ]; then info "mode not set — defaults to active"; else bad "unknown mode: $MODE"; fi
 
   # 7. floor_toolsets readable
   if grep -q 'floor_toolsets:' "$CFG"; then ok "floor_toolsets configured"; else warn "floor_toolsets not found in config"; fi
