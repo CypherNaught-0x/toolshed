@@ -179,7 +179,7 @@ def _mark_turn_routed(agent: Any, state: RouterState, turn_id: str, source: str)
     state.routed_turn_id = turn_id
     state.routed_source = source
     try:
-        setattr(agent, "_token_router_early_hook_turn_id", turn_id)
+        agent._token_router_early_hook_turn_id = turn_id
     except Exception:
         logger.debug("%s: failed to set compatibility turn marker", PLUGIN_NAME, exc_info=True)
 
@@ -249,7 +249,6 @@ def _route_tool_surface(source: str, agent: Any = None, **kwargs: Any) -> Option
     def complete() -> None:
         if source == "pre_turn_context_build":
             _mark_turn_routed(agent, state, turn_id, source)
-        return None
 
     # Get profile config
     profile_cfg = _get_profile_config(cfg)
