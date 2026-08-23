@@ -261,5 +261,41 @@ GitHub-Repo verifiziert werden kann:
   bzw. nicht kausal — siehe router-c-lauf-1-ergebnisse.md)
 - Cross-Agent-Learning (Isolation ist das Feature, nicht der Mangel)
 
+## Schritt 10 — ECHTER GitHub-Canary-Zyklus ✅ ABGESCHLOSSEN (2026-08-23, ~15:00)
+
+Der simulierte Teil ist geschlossen: Alle Lifecycle-Schritte liefen gegen das
+echte öffentliche Repo (https://github.com/Huy3ko/toolshed), kein lokaler
+Pfad, kein Bundle.
+
+| Schritt | Ergebnis |
+|---|---|
+| Install aus GitHub (`plugins install Huy3ko/toolshed`) | ✅ |
+| Version/Commit-Nachweis | ✅ (Commit ce0782f) |
+| Enable + `--allow-tool-override` | ✅ Grant gesetzt |
+| Routing-Smoke v0.1.0 aktiviert | ✅ in=9.818 (vs 15.263 OFF) |
+| v0.1.1 als echtes GitHub-Release | ✅ (Tag efecd17) |
+| Update auf v0.1.1 (`install --force --ref efecd17`) | ✅ Commit+Version gewechselt, **Grant erhalten** |
+| **Echter Rollback auf v0.1.0-SHA (ce0782f)** | ✅ Commit gewechselt, Grant erhalten, Routing-Smoke grün (in=9.166, Task ausgeführt) |
+| Restore auf v0.1.1 | ✅ |
+
+### Neue Distributions-Befunde (aus dem echten Zyklus)
+
+| # | Klasse | Befund | Konsequenz |
+|---|---|---|---|
+| D1 | DISTRIBUTION/UX | `plugins install owner/repo` installiert den Default-Branch, NICHT das neueste Release-Tag | README dokumentiert `--ref <commit-sha>` für reproduzierbare Releases; später ggf. Release-Installer |
+| D2 | UX / STATE-PRESERVATION | **`--force`-Reinstall überschreibt config.yaml → `global.enabled` fällt auf false zurück** — „Update erfolgreich" und Router heimlich OFF für den Nutzer | Bekannter Produktfehler; Lösung im geplanten Installer/Updater (Config-Preservation) oder doctor-Warnung; bis dahin README-Warnung |
+| D3 | PROCESS | Der v0.1.0-Tag-Commit trug intern bereits `__version__ 0.1.1` (F6-Drift war vor dem Tag) | Regel: Tag NACH Version-Sync setzen; Rollback zeigt korrekt den Release-Code, die Versionsanzeige ist kosmetisch falsch |
+
+### Canary-Rollback-Beweis (keine Simulation)
+
+```
+Vorher:  __version__=0.1.1, commit efecd17
+Rollback: plugins install https://github.com/Huy3ko/toolshed.git
+          --force --ref ce0782f...   (v0.1.0-Release-Commit)
+Nachher: commit = ce0782f ✅, Grant erhalten ✅,
+         Routing-Smoke grün (in=9166, Datei geschrieben) ✅
+Restore: zurück auf efecd17 (v0.1.1) + re-enabled ✅
+```
+
 
 

@@ -75,6 +75,14 @@ profiles:
 
 ## Update / Rollback / Uninstall
 
+> **Note:** `plugins install owner/repo` installs the **default branch**,
+> not the latest release tag. For a reproducible release version use
+> `--ref <commit-sha>` (the SHA behind the release tag).
+>
+> **After any `--force` reinstall/update, re-check `global.enabled` in the
+> plugin's config.yaml — the reinstall resets it to `false`.**
+> (Planned: config preservation + doctor warning.)
+
 ```bash
 # Update to latest published state
 hermes -p <profile> plugins update hermes-token-router
