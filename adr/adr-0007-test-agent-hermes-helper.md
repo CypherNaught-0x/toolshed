@@ -138,3 +138,25 @@ Entwicklungsprototyp nie getestet wurde.
    Ohne Grant bleibt Toolshed deaktiviert (fail-closed), absichtlich.
 3. `diagnostics.py` sollte den Grant-Status prüfen und melden ("tools.override:
    not granted — router will stay inactive").
+
+## Schritt 6 — Persistenz-/Lifecycle-Befund (2026-08-23, ~14:00)
+
+| Prüfung | Ergebnis | Beleg |
+|---|---|---|
+| Funktionspersistenz | ✅ | 4+ unabhängige `-z`-Prozesse (je frischer Interpreter) routen konstant auf ~10k Input statt 15k (OFF) |
+| Autorisierungspersistenz | ✅ | `plugins.entries.hermes-token-router.allow_tool_override:true` bleibt über alle Prozesszyklen; `plugins capabilities` zeigt `tools.override: granted` |
+| Config-Persistenz | ✅ | `global.enabled:true` + Shadow-Pfade bleiben erhalten |
+| Learning-/Reuse-Persistenz | ⚠️ NICHT VALIDIERBAR im `-z`-Modus | Shadow schreibt keine `profiles.json`/`events.jsonl` in `-z`-Läufen → braucht Gateway-Betrieb |
+| Cold-vs-Warm | ✅ (Routing-Teil) | Session1 10.448 → Session2 10.235 (konstant); OFF-Baseline 15.120 |
+
+**Gateway-Limit (Umgebungs-, nicht Produkt-):** `hermes gateway install/start`
+scheitert am Helper mit `systemctl --user` Fehler (kein laufender user-systemd
+für den Test-User). Der frische Helper ist damit reiner `-z`/CLI-Betrieb. Für
+die volle Learning- und Gateway-Restart-Persistenz braucht es eine Umgebung mit
+user-systemd ODER den produktiven Gateway-Host.
+
+**Damit ist die Release-Gate-Matrix (GPT):**
+- Install ✅ / Enable+Grant ✅ / Routing ✅ / Persistenz (Funktion+Auth+Config) ✅
+- **Offen:** Learning-/Reuse-Persistenz + echter Gateway-Restart (braucht
+  systemd-Umgebung); zweiter Agent/Isolation; Update/Rollback/Uninstall.
+
