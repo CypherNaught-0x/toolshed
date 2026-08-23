@@ -1,0 +1,13 @@
+Toolshed — an adaptive tool-surface proxy for Hermes
+Copyright (C) 2026 Toolshed contributors
+
+Based on hermes-token-router (https://github.com/JonathanRivera/hermes-token-router)
+Copyright (c) Jonathan Rivera, MIT License.
+
+Significant modifications and extensions (see adr/):
+- Dynamic MCP routing built from config.yaml mcp_servers + live registry
+- Session-sticky shadow learning bridge with profile store (multi-agent safe)
+- Floor toolset policy and fail-open invariants
+- Telemetry/event pipeline (JSONL) with precision/recall metrics
+
+Licensed under the MIT License.
