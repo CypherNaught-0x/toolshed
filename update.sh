@@ -61,8 +61,8 @@ IFS=',' read -r -a TARGETS <<< "$PROFILES"
 
 FAILED=()
 for P in "${TARGETS[@]}"; do
-  CFG="$(ls -d "${TARGET_HOME:-$HOME}/.hermes/profiles/$P/plugins/$PLUGIN_NAME/config.yaml" \
-             "${TARGET_HOME:-$HOME}/.hermes/plugins/$PLUGIN_NAME/config.yaml" 2>/dev/null | head -1)"
+  CFG="$(ls -d "${TH}/profiles/$P/plugins/$PLUGIN_NAME/config.yaml" \
+             "${TH}/plugins/$PLUGIN_NAME/config.yaml" 2>/dev/null | head -1)"
   if [ -z "$CFG" ] || [ ! -f "$CFG" ]; then
     FAILED+=("$P:no-config"); jadd "{\"profile\":\"$P\",\"step\":\"find-config\",\"ok\":false}"; continue
   fi
@@ -91,8 +91,8 @@ for P in "${TARGETS[@]}"; do
   fi
 
   # ---------- 3. RESTORE USER CONFIG ----------
-  NEW_CFG="$(ls -d "${TARGET_HOME:-$HOME}/.hermes/profiles/$P/plugins/$PLUGIN_NAME/config.yaml" \
-                 "${TARGET_HOME:-$HOME}/.hermes/plugins/$PLUGIN_NAME/config.yaml" 2>/dev/null | head -1)"
+  NEW_CFG="$(ls -d "${TH}/profiles/$P/plugins/$PLUGIN_NAME/config.yaml" \
+                 "${TH}/plugins/$PLUGIN_NAME/config.yaml" 2>/dev/null | head -1)"
   if [ -z "$NEW_CFG" ] || [ ! -f "$NEW_CFG" ]; then
     cp "$BACKUP" "$NEW_CFG" 2>/dev/null || { FAILED+=("$P:restore"); jadd "{\"profile\":\"$P\",\"step\":\"restore\",\"ok\":false}"; continue; }
   fi
