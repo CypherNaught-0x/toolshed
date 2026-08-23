@@ -79,12 +79,62 @@ Ergebnis: Datei geschrieben + verifiziert (6 Bytes = "BANANE")
 
 Clean Baseline dokumentiert. Ab hier ist jeder Fehler ein Toolshed-/Packaging-Bug.
 
-## Offene Punkte / gefundene Fehler
-
-| # | Bereich | Befund | Fix | Status |
-|---|---|---|---|---|
-| F1 | PACKAGING | `pyproject.toml` lag in `src/` und referenzierte `../README.md` → setuptools DistutilsOptionError „Cannot access … outside src" | pyproject ans Repo-Root, package-dir auf src/ | ✅ behoben |
-| F2 | PACKAGING | `toolshed.__version__` fehlte (lag nur in `__about__.py`, nicht importiert) | Import in `__init__.py` ergänzt | ✅ behoben |
-| F3 | offen | Hermes-Plugin-Loader erwartet `plugin.yaml` + `__init__.py` im selben Verzeichnis (Directory-Scan, flach/kategorie); unser `src/toolshed/`-Layout muss gegen den echten Installer validiert werden | — | ⏳ nächster Schritt |
+| F4 | COMPATIBILITY | Frischer Core lädt Plugin mit `enabled=False` — Ursache: generische Config hat `global.enabled:false` (Safe-Default) und keinen Profileintrag; `_get_profile_config` fällt auf global zurück | User setzt `global.enabled:true` ODER legt Profilsektion an — als offizieller Setup-Schritt dokumentiert (README) | ✅ geklärt |
+| F5 | COMPATIBILITY | Frischer Core: `capability_check tools.override decision=deny evidence=not granted` — neue Plugin-Capability-Policy | Offizieller Weg: `hermes plugins enable <name> --allow-tool-override`; Grant landet als `plugins.entries.<id>.allow_tool_override:true` und wird verifizierbar erlaubt (`decision=allow`) | ✅ gelöst |
 | B1 | CONFIG | OpenRouter-Weg scheiterte an MiniMax-Credits | Direkter Provider `minimax` + `MiniMax-M3` | ✅ umgangen |
 | B2 | CONFIG | `.env` am falschen Ort (`~/` statt `~/.hermes/`) | verschoben | ✅ behoben |
+
+## Schritt 5 — Installations-/Lifecycle-Gate ✅ BESTANDEN (2026-08-23, ~13:50)
+
+Offizieller User-Flow, von null, auf frischem Upstream b766607b:
+
+```
+1. hermes plugins install file://<toolshed-repo>
+2. hermes plugins enable hermes-token-router --allow-tool-override
+   → "✓ Granted … permission to override built-in tools"
+3. plugins.entries.<id>.allow_tool_override:true wird gesetzt (verifiziert,
+   Log: decision=allow)
+4. global.enabled:true in der Plugin-config.yaml (oder Profilsektion)
+5. Routing-Lauf + Verifikation über --usage-file
+```
+
+**A/B-Beweis auf dem Helper (identischer Task):**
+
+| Bedingung | Input-Tokens | Total |
+|---|---|---|
+| Router ON | 10.448 | 21.015 |
+| Router OFF | 15.120 | 34.513 |
+| **Ersparnis** | **31 %** | **39 %** |
+
+31 % liegt in unserer bewiesenen Spanne (32–70 %) — Toolshed funktioniert als
+fremdes Paket auf aktuellem Hermes-main mit einem Modell (MiniMax-M3), das im
+Entwicklungsprototyp nie getestet wurde.
+
+## Offizielles Install-/Grant-Modell (verifiziert am Upstream b766607b)
+
+1. **Enable-State:** `plugins.enabled` Allow-Liste in config.yaml
+   (`_get_enabled_plugins`). Plugins sind opt-in; `plugins.enable <name>` ist
+   der offizielle CLI-Weg.
+2. **tools.override Grant:** Consent-basiert via
+   `plugins.entries.<id>.granted_capabilities` ODER Legacy-Key
+   `plugins.entries.<id>.allow_tool_override:true` (#64228-Migration).
+   CLI: `--allow-tool-override` / `--no-allow-tool-override`.
+   Bundled Plugins sind automatisch trusted; Drittanbieter müssen den Grant
+   explizit bekommen (fail-closed).
+3. **Install ≠ Enable:** Der Installer installiert ohne Auto-Enable;
+   Aktivierung ist ein separater, bewusster Schritt.
+4. **Multi-Agent:** Grants liegen profilbezogen im jeweiligen Plugin-Home
+   (#65593: ein Prozess konsultiert NUR sein eigenes Home) — kein Cross-Agent-Leak.
+
+## Produktkonsequenzen für v0.1
+
+1. README-Quickstart:
+   ```
+   hermes plugins install <repo-url>
+   hermes plugins enable hermes-token-router --allow-tool-override
+   # dann global.enabled:true (oder Profilsektion) in der Plugin-config.yaml
+   ```
+2. Security-Kapitel: Grant ist notwendig und transparent — kein stilles Sonderrecht.
+   Ohne Grant bleibt Toolshed deaktiviert (fail-closed), absichtlich.
+3. `diagnostics.py` sollte den Grant-Status prüfen und melden ("tools.override:
+   not granted — router will stay inactive").
