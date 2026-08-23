@@ -1,140 +1,188 @@
 # Toolshed
 
+<p align="center">
+  <strong>Less tool overhead. Same agent capabilities.</strong>
+</p>
+
+<p align="center">
+  An adaptive tool-surface proxy for Hermes that sends a smaller, relevant tool set to the model<br>
+  while keeping missing capabilities reachable through Hermes' native recovery path.
+</p>
+
 ![How Toolshed works](docs/toolshed-hero.png)
 
+## Measured results
 
-**An adaptive tool-surface proxy for Hermes** — reduces repeated tool-schema
-overhead while preserving on-demand recovery.
+| Test | Router OFF | Toolshed ON | Reduction |
+| --- | ---: | ---: | ---: |
+| Fresh GitHub canary run (single agent) | 15,263 input tokens | 8,696 input tokens | **43%** |
+| Earlier controlled paired workloads | — | — | **24–70%** |
 
-> Fork heritage: Toolshed is based on [hermes-token-router](https://github.com/JonathanRivera/hermes-token-router)
-> (MIT, Jonathan Rivera) and was substantially extended in practical
-> multi-agent use: dynamic MCP routing, session-sticky shadow learning,
-> floor policy, and telemetry. See `adr/` for all architecture decisions.
+These are measured results, not a universal savings guarantee. Savings depend on the task, the
+installed tool surface, routing confidence and the shape of the provider request. The validation
+history — including experiments that were rejected — lives in [`adr/`](adr/).
 
-## What it does
+## Why Toolshed?
 
-Every model tool ships with every API call — 55+ tools mean ~67 KB of schema
-JSON per request before the actual task starts. Toolshed routes the tool
-surface per session down to the predicted working set (typically 5–12 tools),
-keeps critical floor capabilities always loaded, and lets the agent reload
-missing capabilities on demand via `request_toolset`.
+Hermes agents accumulate dozens of tools, and every visible tool carries schema text into each
+provider request — even when most of it is irrelevant to the current task.
 
-**Measured** (real workloads, identical tasks, router ON vs OFF):
-32–70% less input tokens at comparable output quality; ~31% on a fresh,
-minimal setup. Zero recovery failures. Honest trade-off: less permanent tool
-visibility = less spontaneous exploration (documented in `adr/`).
+Toolshed sits outside the agent core and reduces that surface before the request is sent:
 
-## Requirements
+- **Narrow when confident** — the likely working set plus protected floor tools go to the model.
+- **Fail open when uncertain** — low confidence keeps the full surface instead of risking capability loss.
+- **Recover when needed** — a missing toolset can be added during the session through `request_toolset`.
+- **Keep agents isolated** — routes, grants, learning and telemetry stay profile-local.
+- **No silent privileges** — Toolshed cannot touch the tool surface without Hermes' explicit `tools.override` grant.
 
-- Hermes Agent (validated against upstream `b766607b`, v0.20.5)
-- Python 3.10+
+## Quick start
 
-## Install
+**About profiles:** Hermes calls each agent configuration a *profile*. If you run one agent,
+that's `default`. With several agents, repeat these steps for every profile.
 
 ```bash
-# 1. Install the plugin (official Hermes plugin path)
-hermes -p <profile> plugins install <repo-url>
+# 1. Install from GitHub
+hermes -p default plugins install Huy3ko/toolshed
 
-# 2. Enable WITH the explicit tool-override grant
-hermes -p <profile> plugins enable hermes-token-router --allow-tool-override
-
-# 3. Activate routing for this profile:
-#    in the plugin's config.yaml set global.enabled: true
-#    (or add a profiles.<name>.enabled: true section)
+# 2. Authorize the tool-surface override
+hermes -p default plugins enable hermes-token-router --allow-tool-override
 ```
 
-**Install ≠ authorization.** Without the `tools.override` grant Toolshed
-stays inactive by design (fail-closed). The grant is the explicit security
-contract: you are allowing this plugin to change which tools your agent sees.
-
-Verify:
+The grant lets Toolshed change **which already-authorized tools are visible to the model** — it does
+not create new permissions. Installation and authorization are deliberately separate steps:
+no grant, no routing.
 
 ```bash
-hermes -p <profile> plugins capabilities hermes-token-router
+# 3. Turn routing on — in the installed plugin's config.yaml:
+#    global: enabled: true
+```
+
+Then verify:
+
+```bash
+hermes -p default plugins capabilities hermes-token-router
 # → tools.override: granted
 ```
 
-Routing activity shows in logs as `deterministic route reason=…` and
-`narrowed to N toolsets`.
+When routing is active you'll see `deterministic route reason=…` and `narrowed to N toolsets`
+in the Hermes logs.
 
-## Configuration (deliberately minimal)
+## How it works
+
+1. The first user turn is classified; the result stays sticky for the session.
+2. Confident prediction → only likely tools + floor stay visible. Uncertainty → full surface.
+3. A missing capability mid-task? Native Hermes recovery adds that toolset on demand.
+
+That's the whole mechanism. Details are in the diagram above and in the ADRs.
+
+## Multiple agents
+
+One profile = one agent = isolated state:
+
+```bash
+hermes -p coding plugins install Huy3ko/toolshed
+hermes -p coding plugins enable hermes-token-router --allow-tool-override
+```
+
+Routes, grants, learning and telemetry never cross profiles. Note that
+`hermes profile create --clone` did **not** copy plugins in our validated setup — install explicitly
+per profile, and re-check this behavior when Hermes updates.
+
+## Update
+
+```bash
+hermes -p default plugins update hermes-token-router
+```
+
+**Known behavior today:** a force reinstall/update can replace the plugin's `config.yaml`, which
+resets `global.enabled` back to `false`. After updating, check three things: version/commit,
+grant still present, `global.enabled: true`. A config-preserving updater and a `doctor` command
+are planned.
+
+## Pinned installs & rollback
+
+`plugins install owner/repo` follows the default branch — it does not automatically mean "latest
+release". For reproducible deployments, pin the commit behind a release:
+
+```bash
+hermes -p default plugins install https://github.com/Huy3ko/toolshed.git \
+  --ref <release-commit-sha> --force
+```
+
+Rollback works the same way with the previous release's commit SHA. One Git detail matters here:
+annotated tags have their own object SHA — Hermes expects the **commit SHA behind the tag**.
+
+## Uninstall
+
+```bash
+hermes -p default plugins remove hermes-token-router
+```
+
+Hermes keeps working without Toolshed. The upstream uninstaller may leave the grant entry in your
+config — it doesn't keep anything running, but remove it if you don't want it retained for a possible
+reinstall.
+
+## Security model
+
+Toolshed changes which tools the model sees, so its contract is explicit:
+
+- **Fail-closed on authorization:** no `tools.override` grant → no surface manipulation.
+- **Fail-open on routing uncertainty:** uncertainty keeps capabilities rather than removing them.
+- **Recovery stays native:** missing registered capabilities can be recovered during the session.
+- **Floor policy is not content-controlled:** prompt or repository text cannot rewrite it.
+- **Routing ≠ permission:** making a tool visible never creates permissions the agent didn't have.
+- **Profile state stays isolated** across agents.
+
+Adversarial testing covered manipulated repository content, read-only GitHub workflows, recovery,
+stale capabilities and multi-profile isolation. See [SECURITY.md](SECURITY.md) for the full model
+and how to report vulnerabilities.
+
+## Known limitations
+
+- Gateway-restart / learning persistence has not yet been fully validated under `systemd --user`.
+- Less permanent tool visibility can reduce spontaneous exploration; required capabilities remained
+  recoverable in all validated tests.
+- `plugins install owner/repo` follows the default branch, not the latest release tag.
+- Force reinstall currently resets `global.enabled` — see Update.
+- Validated against Hermes upstream commit `b766607b` / v0.20.5; newer versions may need revalidation.
+- A guided installer, config-preserving updater and `doctor` command are planned, not shipped.
+
+## Configuration
+
+Defaults are intentionally small:
 
 ```yaml
 global:
   enabled: true            # router on/off
-  mode: active             # active = route | shadow = collect data only
-  floor_toolsets:          # NEVER pruned
-  - terminal
-  - file
-  - skills
-  - memory
-  - web
+  mode: active             # active = route | shadow = observe only
+  floor_toolsets:          # protected: never pruned
+    - terminal
+    - file
+    - skills
+    - memory
+    - web
+
 shadow:
-  enabled: true            # session-sticky learning bridge (profile-local)
-profiles:
-  my-agent:                # optional per-profile overrides
-    enabled: true
+  enabled: true            # profile-local learning bridge
 ```
 
-## Update / Rollback / Uninstall
+Keep `floor_toolsets` small — everything on it rides along in every request. Per-profile overrides
+live under `profiles.<name>` for advanced setups.
 
-> **Note:** `plugins install owner/repo` installs the **default branch**,
-> not the latest release tag. For a reproducible release version use
-> `--ref <commit-sha>` (the SHA behind the release tag).
->
-> **After any `--force` reinstall/update, re-check `global.enabled` in the
-> plugin's config.yaml — the reinstall resets it to `false`.**
-> (Planned: config preservation + doctor warning.)
+## For contributors
 
-```bash
-# Update to latest published state
-hermes -p <profile> plugins update hermes-token-router
+Architecture decisions, rejected mechanisms and validation history are documented, not hidden:
+[`adr/`](adr/) · [`CHANGELOG.md`](CHANGELOG.md) · [`CONTRIBUTING.md`](CONTRIBUTING.md) ·
+[`SECURITY.md`](SECURITY.md)
 
-# Rollback to a known release (commit SHA behind the release tag!)
-hermes -p <profile> plugins install <repo-url> --ref <previous-release-commit-sha> --force
+Project rule in one line:
 
-# Uninstall (agent keeps working; grant entry may remain in config.yaml —
-# remove it manually if you want the authorization gone too)
-hermes -p <profile> plugins remove hermes-token-router
-```
+> No mechanism gets added because it sounds good — only when a controlled test shows it's needed.
 
-Note: annotated git tags have their own object SHA. Rollback targets must be
-the **commit SHA** behind a tag, not the tag's object SHA.
+## Fork heritage & license
 
-## Multi-Agent
+Toolshed is based on MIT-licensed `hermes-token-router` work by Jonathan Rivera (archived upstream)
+and was substantially extended: dynamic MCP routing, compatibility work against current Hermes
+upstream, lifecycle validation, security testing. See [`NOTICE`](NOTICE) and [`LICENSE`](LICENSE).
 
-One profile = one agent = one isolated state (routing, learning, telemetry).
-No shared agent-specific state across profiles (ADR notes).
-`hermes profile create --clone` does **not** copy plugins — repeat install +
-enable + grant per profile.
-
-## Security
-
-See [SECURITY.md](SECURITY.md) for the full model. Summary:
-
-- **Fail-closed on authorization:** no grant → no tool-surface manipulation.
-- **Fail-open on routing errors:** router mistakes degrade to full tool
-  surface or native recovery, never functionality loss.
-- **Floor immutability:** task content cannot alter which toolsets are
-  protected.
-- **Prompt/repo content cannot override policy:** malicious text in issues,
-  READMEs, or tool descriptions cannot expand grants.
-
-## Known limitations
-
-- Gateway-restart/learning persistence not yet validated in a systemd-user
-  environment.
-- Less permanent tool visibility means fewer "stumble-upon" discoveries;
-  native recovery (`request_toolset`) covers required capabilities.
-- Validated against Hermes upstream commit `b766607b`; newer cores may need
-  compatibility checks (plugin capability system).
-
-## Docs
-
-- `adr/` — Architecture Decision Records (fork positioning, security,
-  multi-agent state, experiment exclusions)
-- `CHANGELOG.md` — release history
-
-## License
-
-MIT — see LICENSE and NOTICE for fork attribution.
+MIT.
