@@ -55,6 +55,7 @@ fi
 [ -n "$TARGET_HOME" ] && HERMES_BIN="${HERMES_BIN/$HOME/$TARGET_HOME}"
 [ -z "$HERMES_BIN" ] && say "✗ hermes not found" && jadd '{"ok":false,"reason":"no hermes"}' && [ "$JSON" = "1" ] && printf "%b" "$RESULT_LOG" && exit 1
 
+TH="${TARGET_HOME:-$HOME}"
 [ -z "$PROFILES" ] && PROFILES="default"
 IFS=',' read -r -a TARGETS <<< "$PROFILES"
 
