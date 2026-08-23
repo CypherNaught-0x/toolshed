@@ -84,9 +84,9 @@ hermes -p coding plugins install Huy3ko/toolshed
 hermes -p coding plugins enable hermes-token-router --allow-tool-override
 ```
 
-Routes, grants, learning and telemetry never cross profiles. Note that
-`hermes profile create --clone` did **not** copy plugins in our validated setup — install explicitly
-per profile, and re-check this behavior when Hermes updates.
+Routes, grants, learning and telemetry stayed profile-local in the validated setup. Because Hermes
+may change profile semantics in future versions, re-verify isolation after upstream updates
+(`hermes profile create --clone` did not copy plugins/grants/state in the validated test).
 
 ## Update
 
