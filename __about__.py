@@ -1,7 +1,4 @@
-"""Single-source version: pyproject.toml ist die Wahrheit.
-
-Der flache Hermes-Plugin-Loader kann importlib.metadata nicht immer nutzen
-(Plugin läuft nicht als installiertes Paket), daher statischer Fallback.
-Bei Release: beide Stellen per Skript synchron halten (scripts/sync_version).
-"""
-__version__ = "0.1.1"
+"""Root shim for the flat Hermes plugin loader — delegates to the package copy."""
+import os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
+from toolshed.__about__ import __version__  # noqa: E402

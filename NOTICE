@@ -1,20 +1,23 @@
-Toolshed — an adaptive tool-surface proxy for Hermes
-Copyright (C) 2026 Toolshed contributors
+Toolshed
+Copyright (c) 2026 Toolshed contributors
 
-Based on hermes-token-router (https://github.com/JonathanRivera/hermes-token-router)
-Copyright (c) Jonathan Rivera, MIT License.
+This software is a fork/extension of hermes-token-router, originally by
+Jonathan Rivera, licensed under the MIT License.
 
-Significant modifications and extensions (see adr/):
-- Dynamic MCP routing built from config.yaml mcp_servers + live registry
-- Session-sticky shadow learning bridge with profile store (multi-agent safe)
-- Floor toolset policy and fail-open invariants
-- Telemetry/event pipeline (JSONL) with precision/recall metrics
+Fork provenance
+---------------
+- Upstream project: hermes-token-router by Jonathan Rivera
+  (formerly https://github.com/JonathanRivera/hermes-token-router)
+- NOTE (2026-08-23): the upstream repository currently returns HTTP 404
+  (no longer publicly reachable). The MIT license text and upstream
+  copyright used here are taken from the locally archived fork snapshot
+  that Toolshed was built from. No genealogical connection to any other
+  project (e.g. AtlasOmnia) is asserted — none is verified.
+- Toolshed adds: dynamic MCP routing, session-sticky shadow learning,
+  floor policy, telemetry, packaging, and documentation. These are
+  original contributions and are the responsibility of the Toolshed
+  maintainers.
 
-Licensed under the MIT License.
-
-Hinweis (2026-08-23): Das ursprüngliche Upstream-Repository
-(https://github.com/JonathanRivera/hermes-token-router) ist zum Zeitpunkt
-dieses Releases nicht mehr öffentlich erreichbar (404). Die MIT-Lizenz und
-Copyright-Angabe stammen aus dem lokal archivierten Fork-Stand, auf dem
-Toolshed aufbaut. Attribution bleibt bestehen, unabhängig von der
-Verfügbarkeit des Upstreams.
+MIT License (upstream + Toolshed contributions)
+Copyright (c) Jonathan Rivera (hermes-token-router, upstream)
+Copyright (c) 2026 Toolshed contributors
