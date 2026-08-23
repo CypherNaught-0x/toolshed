@@ -13,8 +13,10 @@ Thanks for your interest in contributing to Toolshed!
 2. Fork, create a feature branch, keep changes small.
 3. Run the test suite before pushing:
    ```bash
-   python -m venv .venv && .venv/bin/pip install -e . pytest ruff
-   .venv/bin/python -m pytest tests/ -q
+   python -m venv .venv
+   .venv/bin/pip install -e ".[dev]"
+   # dev tools (pytest, ruff) come from the [dev] extra
+   .venv/bin/pytest tests/ -q
    .venv/bin/ruff check src/
    ```
 4. CI must pass (tests + lint + secret/path scan).

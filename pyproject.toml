@@ -29,3 +29,6 @@ ignore = ["UP006", "UP045", "UP035", "UP037", "BLE001", "S110", "I001", "SIM102"
 [tool.ruff.lint.per-file-ignores]
 "src/toolshed/__init__.py" = ["F401"]
 "__init__.py" = ["F401"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff==0.16.4", "PyYAML>=6", "pip-audit>=2.7"]

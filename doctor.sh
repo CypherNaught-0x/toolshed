@@ -93,8 +93,10 @@ else
   if [ "${DUP:-0}" -le 1 ]; then ok "config consistent (single global.enabled)"; else warn "multiple top-level 'enabled:' keys ($DUP) — check config manually"; fi
 
   # 11. stale grant warning (grant exists but plugin dir missing)
-  GRANT_CFG="$HOME/.hermes/config.yaml"
-  [ -f "$GRANT_CFG" ] || GRANT_CFG="$HOME/.hermes/profiles/$PROFILE/config.yaml"
+  # stale-grant check: only look at the profile-local config (never the global
+  # hermes config — reading unrelated config files trips security scanners and
+  # is unnecessary: the grant lives next to this plugin's own registration)
+  GRANT_CFG="$HOME/.hermes/profiles/$PROFILE/config.yaml"
   if [ -f "$GRANT_CFG" ] && grep -q "allow_tool_override: true" "$GRANT_CFG" && [ ! -d "$(dirname "$CFG")" ]; then
     warn "stale grant: allow_tool_override set but plugin directory missing"
   else ok "no stale grant detected"; fi

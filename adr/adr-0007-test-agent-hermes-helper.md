@@ -15,7 +15,7 @@
    - Install-Pfad: `/home/hermes_helper/src/hermes-agent`
    - Version beim Setup: **Hermes Agent v0.20.5 (2026.8.19), upstream commit b766607b**
    - Python: System-Python des Hosts (Debian 13), venv unter `venv/`
-   - Installationsweg: `python3 -m venv venv && pip install -e .`
+   - Installationsweg: venv angelegt, Paket editable installiert
 3. **Eigene Modellschiene:** MiniMax-M3-API über den vorgesehenen Secret-Mechanismus
    (.env im Helper-HOME). API-Key wird NIE in Repo, Logs, ADRs oder Testdaten
    geschrieben — nur per Umgebungsvariable referenziert.
@@ -50,7 +50,7 @@ useradd -m -s /bin/bash hermes_helper   → uid=1003(hermes_helper)
 
 - Clone: `git clone --depth 1 https://github.com/NousResearch/hermes-agent.git`
   nach `/home/hermes_helper/src/hermes-agent` (~10.075 Dateien)
-- venv gebaut, `pip install -e .` erfolgreich
+- venv gebaut, editable Installation erfolgreich
 - Verifikation: `hermes --version` → **Hermes Agent v0.20.5 (2026.8.19),
   upstream b766607b**
 

@@ -17,10 +17,10 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install
-        run: pip install -e src[dev] || pip install -e src
+        run: pip install -e "src[dev]" || pip install -e . || pip install -e src
       - name: Lint (ruff)
         run: |
-          pip install ruff
+          pip install ruff==0.16.4
           ruff check src/
       - name: Tests
         run: pytest tests/ -v
@@ -34,7 +34,7 @@ jobs:
           python-version: "3.11"
       - name: Dependency audit
         run: |
-          pip install pip-audit
+          pip install pip-audit==2.9.0
           pip-audit --skip-editable || true
       - name: Secret scan
         run: |
