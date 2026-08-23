@@ -200,7 +200,18 @@ UND in src/toolshed/) und driftete auseinander (Root 0.1.0, src 0.1.1). Fix:
 Root synchronisiert; langfristig single-source (pyproject als einzige Wahrheit,
 __about__ generieren oder importlib.metadata nutzen).
 
-**Rollback:** Noch nicht getestet — braucht versionierte Artefakte (Tags/
-Releases). Für v0.1: dokumentierter Weg = alte Version via git ref installieren.
+**Rollback:** ✅ GETESTET und BESTANDEN. Weg: annotierte Tags v0.1.0/v0.1.1 im
+Repo, `plugins install <url> --ref <commit-sha> --force` dreht agentb von
+0.1.1 zurück auf 0.1.0 (Versionsnachweis im installierten `__about__.py`,
+Routing-Lauf danach erfolgreich). **Lernung daraus:** Rollback-Ziel ist die
+*Commit-SHA hinter dem Tag*, nicht die Tag-SHA selbst (annotierte Tags haben
+eigene Objekt-SHA — erster Versuch scheiterte daran, zweiter mit
+`v0.1.0^{commit}`-Auflösung erfolgreich). Für das Release: Tags sauber auf die
+richtigen Commits setzen, README dokumentiert Rollback als
+`plugins install <url> --ref <sha-vorheriges-release> --force`.
+
+**Lifecycle-Kette komplett bestanden:**
+install → enable+grant → routing → persistenz → isolation → update (0.1.0→0.1.1)
+→ rollback (0.1.1→0.1.0) → Agent bleibt durchgehend funktionsfähig.
 
 
