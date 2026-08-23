@@ -40,7 +40,11 @@ if [ -n "$TARGET_HOME" ]; then
 fi
 # Run-as wrapper: identity = target user when updating a foreign home, else current user
 AS_USER() {
-  if [ -n "$TARGET_USER" ] && [ "$(id -un)" != "$TARGET_USER" ]; then sudo -u "$TARGET_USER" env HOME="$TARGET_HOME" "$@"; else env HOME="${TARGET_HOME:-$HOME}" "$@"; fi
+  if [ -n "$TARGET_USER" ] && [ "$(id -un)" != "$TARGET_USER" ]; then
+    sudo -u "$TARGET_USER" env HOME="$TH" bash -c "$*"
+  else
+    HOME="$TH" "$@"
+  fi
 }
 
 say() { [ "$JSON" = "0" ] && echo "$@"; return 0; }
