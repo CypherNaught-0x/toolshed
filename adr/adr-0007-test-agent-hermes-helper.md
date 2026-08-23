@@ -214,4 +214,52 @@ richtigen Commits setzen, README dokumentiert Rollback als
 install → enable+grant → routing → persistenz → isolation → update (0.1.0→0.1.1)
 → rollback (0.1.1→0.1.0) → Agent bleibt durchgehend funktionsfähig.
 
+## Schritt 9 — Post-GitHub-Checkliste (offene Punkte bis echtes Release)
+
+Stand 2026-08-23: Alle Lifecycle-Mechaniken sind **simuliert** (lokale
+fake-github-Remotes + git bundle) und bewiesen. Was erst mit dem echten
+GitHub-Repo verifiziert werden kann:
+
+### A. Echter Release-Zyklus (GPT-Vorgabe, 1:1 abzuarbeiten)
+
+1. Repo auf GitHub pushen (owner/repo noch zu entscheiden)
+2. **v0.1.0 als GitHub Release veröffentlichen** (Tag auf dem geprüften Commit)
+3. hermes_helper installiert v0.1.0 **aus dem echten GitHub-Repo**
+   (`hermes plugins install <owner>/toolshed` — owner/repo-Shorthand statt file://)
+4. v0.1.1 bauen → als Release veröffentlichen
+5. Helper: `hermes plugins update hermes-token-router` (der offizielle
+   Update-Befehl, im frischen Core vorhanden — noch nie gegen echtes GitHub getestet)
+6. Lifecycle-/Routing-Test nach Update
+7. grün → Release akzeptieren; rot → Rollback via
+   `plugins install <owner>/toolshed --ref <sha-von-v0.1.0> --force`
+
+### B. Produktfunktionen für spätere Versionen (bewusst NICHT in v0.1)
+
+- `toolshed update` / `toolshed rollback` als dünne eigene Befehle — v0.1 nutzt
+  die nativen Hermes-Befehle (`plugins update`, `install --ref`); eigene
+  Subcommands erst wenn der native Weg in der Praxis Lücken zeigt
+- `diagnostics.py` erweitern: Grant-Status prüfen und melden
+  („tools.override: not granted — router will stay inactive")
+- F8 eskalieren: Grant-Überleben nach Uninstall ist Upstream-Verhalten
+  (Hermes-Core) — als Issue bei Nous Research einreichen, nicht selbst patchen
+- `doctor`-Subcommand (Install-Checks: Grant, enabled-Flag, Floor-Konfig)
+
+### C. Dokumentation vor Release
+
+- README: Multi-Agent-Abschnitt (F7 — `profile clone` übernimmt keine Plugins;
+  pro Profil install+enable wiederholen)
+- README: Rollback-Syntax inkl. der Tag-vs-Commit-SHA-Falle
+- README: `global.enabled:true` als Setup-Schritt (F4) — langfristig hübscher
+  über doctor/Installer lösen (GPT: „UX-Thema, jetzt nicht anfassen")
+- Security-Kapitel: Grant-Modell + fail-closed-Prinzip (aus ADR-0004 verlinken)
+- Benchmarks: 31 % (leeres System) + 32–70 % (volle Toolfläche) ehrlich
+  nebeneinander, mit Messmethodik
+
+### D. Bekannte Nicht-Ziele für v0.1 (aus den Experimenten)
+
+- Capability-Index / Discovery-Mechanismus (C-v1/D-v1: bewiesen wirkungslos
+  bzw. nicht kausal — siehe router-c-lauf-1-ergebnisse.md)
+- Cross-Agent-Learning (Isolation ist das Feature, nicht der Mangel)
+
+
 
