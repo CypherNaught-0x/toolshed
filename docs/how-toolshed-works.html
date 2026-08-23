@@ -4,36 +4,35 @@
 <meta charset="UTF-8">
 <title>How Toolshed Works — Adaptive Tool-Surface Proxy for Hermes</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   body {
-    background:#020617;
+    background:#f8fafc;
     font-family:'JetBrains Mono',monospace;
-    color:#e2e8f0;
+    color:#0f172a;
     min-height:100vh;
     padding:40px 24px;
   }
   .wrap { max-width:1240px; margin:0 auto; }
-  header { text-align:center; margin-bottom:36px; }
-  h1 { font-size:34px; font-weight:800; letter-spacing:-1px; color:#f1f5f9; }
-  h1 span { color:#22d3ee; }
-  .sub { color:#94a3b8; font-size:13px; margin-top:10px; }
-  .sub b { color:#34d399; }
+  header { text-align:center; margin-bottom:32px; }
+  h1 { font-size:34px; font-weight:800; letter-spacing:-1px; color:#0f172a; }
+  h1 span { color:#2563eb; }
+  .sub { color:#475569; font-size:14px; margin-top:10px; }
   .card {
-    background:rgba(15,23,42,.55);
-    border:1px solid #1e293b;
+    background:#ffffff;
+    border:1px solid #e2e8f0;
     border-radius:14px;
-    padding:28px;
+    padding:24px;
+    box-shadow:0 1px 3px rgba(15,23,42,0.06);
   }
   svg { width:100%; height:auto; display:block; }
-  .badges { display:flex; gap:14px; justify-content:center; flex-wrap:wrap; margin-top:26px; }
-  .badge {
-    border:1px solid #334155; border-radius:999px; padding:7px 16px;
-    font-size:10px; letter-spacing:1.5px; color:#94a3b8;
+  .trustbar { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top:22px; }
+  .trust {
+    background:#eff6ff; color:#1d4ed8;
+    border-radius:999px; padding:7px 16px; font-size:11px;
   }
-  .badge.g { border-color:#065f46; color:#34d399; }
-  .badge.c { border-color:#155e75; color:#22d3ee; }
+  .trust.neutral { background:#f1f5f9; color:#475569; }
 </style>
 </head>
 <body>
@@ -41,163 +40,134 @@
 
 <header>
   <h1>How <span>Toolshed</span> works</h1>
-  <p class="sub">Shrink the tool surface when confidence is high. <b>Keep every capability reachable when it is not.</b></p>
+  <p class="sub"><b>Narrow when confident. Recover when needed.</b> — an external proxy between your Hermes agents and the model provider. The agent core stays untouched.</p>
 </header>
 
 <div class="card">
-<svg viewBox="0 0 1180 620" xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 1180 640" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/>
-    </pattern>
-    <marker id="arrCyan" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto">
-      <path d="M0,0 L9,4 L0,8 Z" fill="#22d3ee"/>
+    <marker id="aBlue" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto">
+      <path d="M0,0 L9,4 L0,8 Z" fill="#2563eb"/>
     </marker>
-    <marker id="arrGreen" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto">
-      <path d="M0,0 L9,4 L0,8 Z" fill="#34d399"/>
+    <marker id="aGreen" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto">
+      <path d="M0,0 L9,4 L0,8 Z" fill="#059669"/>
     </marker>
-    <marker id="arrAmber" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto">
-      <path d="M0,0 L9,4 L0,8 Z" fill="#fbbf24"/>
+    <marker id="aAmber" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto">
+      <path d="M0,0 L9,4 L0,8 Z" fill="#d97706"/>
     </marker>
-    <marker id="arrRose" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto">
-      <path d="M0,0 L9,4 L0,8 Z" fill="#fb7185"/>
+    <marker id="aRose" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto">
+      <path d="M0,0 L9,4 L0,8 Z" fill="#dc2626"/>
     </marker>
   </defs>
 
-  <rect x="0" y="0" width="1180" height="620" fill="#020617"/>
-  <rect x="0" y="0" width="1180" height="620" fill="url(#grid)"/>
-
-  <!-- ============ ARROWS (behind boxes) ============ -->
-  <!-- input -> route -->
-  <line x1="200" y1="130" x2="285" y2="130" stroke="#22d3ee" stroke-width="2" marker-end="url(#arrCyan)"/>
-  <!-- route -> decide -->
-  <line x1="500" y1="130" x2="585" y2="130" stroke="#22d3ee" stroke-width="2" marker-end="url(#arrCyan)"/>
-  <!-- decide -> narrow (YES) -->
-  <line x1="790" y1="105" x2="865" y2="105" stroke="#34d399" stroke-width="2" marker-end="url(#arrGreen)"/>
-  <text x="805" y="95" fill="#94a3b8" font-size="10">confident</text>
-  <!-- decide -> fail-open (UNCERTAIN) -->
-  <path d="M 790 160 Q 830 220 865 250" fill="none" stroke="#fbbf24" stroke-width="2" marker-end="url(#arrAmber)"/>
-  <text x="790" y="215" fill="#94a3b8" font-size="10">uncertain</text>
-  <!-- narrow -> main model -->
-  <path d="M 1045 140 L 1045 330 L 900 355" fill="none" stroke="#34d399" stroke-width="2" marker-end="url(#arrGreen)"/>
-  <!-- fail-open -> main model -->
-  <line x1="1000" y1="310" x2="900" y2="380" stroke="#fbbf24" stroke-width="2" marker-end="url(#arrAmber)"/>
-  <!-- main model -> recover -->
-  <line x1="650" y1="400" x2="420" y2="400" stroke="#fb7185" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrRose)"/>
-  <text x="455" y="388" fill="#94a3b8" font-size="10">missing capability?</text>
-  <!-- recover loop back to model -->
-  <path d="M 300 480 Q 300 530 660 520" fill="none" stroke="#22d3ee" stroke-width="1.5" stroke-dasharray="4 3"/>
-  <text x="360" y="548" fill="#64748b" font-size="9">expansion is permanent for this session · tools are never re-pruned · normal checks &amp; approvals still apply</text>
-
-  <!-- ============ BOXES ============ -->
+  <!-- ================= MAIN PATH (dominant, top row) ================= -->
 
   <!-- 01 INPUT -->
-  <g>
-    <rect x="60" y="85" width="140" height="90" rx="8" fill="#0f172a"/>
-    <rect x="60" y="85" width="140" height="90" rx="8" fill="rgba(8,51,68,0.4)" stroke="#22d3ee" stroke-width="1.5"/>
-    <text x="78" y="112" fill="#22d3ee" font-size="9" letter-spacing="1.5">01 · INPUT</text>
-    <text x="78" y="134" fill="#f1f5f9" font-size="13" font-weight="700">First user turn</text>
-    <text x="78" y="152" fill="#94a3b8" font-size="9">classified once,</text>
-    <text x="78" y="163" fill="#94a3b8" font-size="9">session-sticky after that</text>
-  </g>
+  <rect x="40" y="60" width="170" height="86" rx="10" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+  <text x="58" y="88" fill="#2563eb" font-size="10" letter-spacing="1.5">01 · INPUT</text>
+  <text x="58" y="114" fill="#0f172a" font-size="15" font-weight="800">First user turn</text>
+  <text x="58" y="132" fill="#64748b" font-size="10">classified once · session-sticky</text>
 
-  <!-- 02 ROUTE -->
-  <g>
-    <rect x="290" y="75" width="210" height="110" rx="8" fill="#0f172a"/>
-    <rect x="290" y="75" width="210" height="110" rx="8" fill="rgba(8,51,68,0.4)" stroke="#22d3ee" stroke-width="1.5"/>
-    <text x="308" y="102" fill="#22d3ee" font-size="9" letter-spacing="1.5">02 · ROUTE</text>
-    <text x="308" y="126" fill="#f1f5f9" font-size="14" font-weight="700">Deterministic rules</text>
-    <text x="308" y="146" fill="#94a3b8" font-size="9">fast · local · zero model cost</text>
-    <text x="308" y="168" fill="#64748b" font-size="9">optional LLM classifier for ambiguous turns</text>
-  </g>
+  <!-- 02 ROUTER (external!) -->
+  <rect x="280" y="42" width="250" height="122" rx="10" fill="#2563eb" stroke="#1e40af" stroke-width="2"/>
+  <text x="300" y="72" fill="#bfdbfe" font-size="10" letter-spacing="1.5">02 · TOOLSHED ROUTER — EXTERNAL PLUGIN</text>
+  <text x="300" y="98" fill="#ffffff" font-size="17" font-weight="800">Deterministic routing</text>
+  <text x="300" y="120" fill="#dbeafe" font-size="10">local rules · no model cost</text>
+  <text x="300" y="138" fill="#93c5fd" font-size="10">agent core stays untouched · per-profile state</text>
 
   <!-- 03 DECIDE -->
-  <g>
-    <rect x="590" y="70" width="200" height="115" rx="8" fill="#0f172a"/>
-    <rect x="590" y="70" width="200" height="115" rx="8" fill="rgba(8,51,68,0.4)" stroke="#22d3ee" stroke-width="1.5"/>
-    <text x="608" y="97" fill="#22d3ee" font-size="9" letter-spacing="1.5">03 · DECIDE</text>
-    <text x="608" y="121" fill="#f1f5f9" font-size="14" font-weight="700">Confidence gate</text>
-    <text x="608" y="141" fill="#94a3b8" font-size="9">known toolsets? valid output?</text>
-    <text x="608" y="154" fill="#94a3b8" font-size="9">above threshold?</text>
-    <text x="608" y="174" fill="#64748b" font-size="9">fail-closed on grant, fail-open on routing</text>
+  <rect x="600" y="52" width="180" height="102" rx="10" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+  <text x="618" y="80" fill="#2563eb" font-size="10" letter-spacing="1.5">03 · CONFIDENT?</text>
+  <text x="618" y="106" fill="#0f172a" font-size="15" font-weight="800">Confidence gate</text>
+  <text x="618" y="126" fill="#64748b" font-size="10">known toolsets · valid output · threshold met</text>
+
+  <!-- NARROW -->
+  <rect x="850" y="46" width="290" height="70" rx="10" fill="#ecfdf5" stroke="#059669" stroke-width="2.5"/>
+  <text x="868" y="74" fill="#059669" font-size="10" letter-spacing="1.5">YES → NARROW</text>
+  <text x="868" y="99" fill="#0f172a" font-size="15" font-weight="800">Likely toolsets + floor tools</text>
+
+  <!-- MAIN FLOW ARROWS (thick) -->
+  <line x1="212" y1="103" x2="272" y2="103" stroke="#2563eb" stroke-width="4" marker-end="url(#aBlue)"/>
+  <line x1="532" y1="103" x2="592" y2="103" stroke="#2563eb" stroke-width="4" marker-end="url(#aBlue)"/>
+  <line x1="782" y1="90" x2="842" y2="82" stroke="#059669" stroke-width="4" marker-end="url(#aGreen)"/>
+
+  <!-- ================= EXCEPTIONS (secondary row, lighter) ================= -->
+
+  <!-- NO → FAIL OPEN -->
+  <rect x="600" y="200" width="250" height="64" rx="10" fill="#fffbeb" stroke="#d97706" stroke-width="1.5"/>
+  <text x="618" y="225" fill="#b45309" font-size="10" letter-spacing="1.5">NOT SURE → FAIL OPEN</text>
+  <text x="618" y="248" fill="#0f172a" font-size="13" font-weight="700">Full surface · nothing removed</text>
+  <path d="M 690 156 L 690 192" fill="none" stroke="#d97706" stroke-width="2" marker-end="url(#aAmber)"/>
+
+  <!-- NO GRANT → OFF -->
+  <rect x="890" y="200" width="260" height="64" rx="10" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+  <text x="908" y="225" fill="#dc2626" font-size="10" letter-spacing="1.5">NO GRANT → STAYS OFF</text>
+  <text x="908" y="248" fill="#0f172a" font-size="13" font-weight="700">Install ≠ authorization</text>
+  <path d="M 875 155 Q 950 175 985 194" fill="none" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#aRose)"/>
+
+  <!-- ================= PROVIDER ROW (with cache) ================= -->
+
+  <!-- Cache hit box -->
+  <rect x="330" y="310" width="230" height="76" rx="10" fill="#f0fdf4" stroke="#059669" stroke-width="1.5"/>
+  <text x="348" y="336" fill="#059669" font-size="10" letter-spacing="1.5">CACHE HIT (stable prefix)</text>
+  <text x="348" y="360" fill="#0f172a" font-size="13" font-weight="700">Session-sticky surface</text>
+  <text x="348" y="377" fill="#64748b" font-size="10">no re-pruning mid-session → prefix stays byte-stable</text>
+
+  <!-- HERMES AGENT (the host) boundary -->
+  <rect x="30" y="292" width="1130" height="150" rx="12" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="8 5"/>
+  <text x="50" y="318" fill="#475569" font-size="11" font-weight="700" letter-spacing="2">HERMES AGENT (HOST) — Toolshed is NOT part of the agent core</text>
+
+  <!-- 04 MODEL -->
+  <rect x="380" y="340" width="240" height="80" rx="10" fill="#f5f3ff" stroke="#7c3aed" stroke-width="2"/>
+  <text x="398" y="366" fill="#7c3aed" font-size="10" letter-spacing="1.5">03 · MODEL PROVIDER</text>
+  <text x="398" y="391" fill="#0f172a" font-size="15" font-weight="800">Selected schemas only</text>
+  <text x="398" y="409" fill="#64748b" font-size="10">cache reads the stable prefix on every turn</text>
+
+  <!-- arrows into model -->
+  <path d="M 995 118 L 995 285 L 628 355" fill="none" stroke="#059669" stroke-width="3" marker-end="url(#aGreen)"/>
+  <path d="M 725 264 Q 720 320 626 358" fill="none" stroke="#d97706" stroke-width="2" marker-end="url(#aAmber)"/>
+  <!-- cache -> model -->
+  <line x1="562" y1="348" x2="572" y2="348" stroke="#059669" stroke-width="2" stroke-dasharray="3 3"/>
+  <line x1="335" y1="370" x2="372" y2="374" stroke="#059669" stroke-width="2" stroke-dasharray="3 3" marker-end="url(#aGreen)"/>
+
+  <!-- ================= RECOVERY (bottom left inside host) ================= -->
+  <rect x="55" y="365" width="240" height="66" rx="10" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+  <text x="73" y="390" fill="#dc2626" font-size="10" letter-spacing="1.5">CAPABILITY MISSING?</text>
+  <text x="73" y="413" fill="#0f172a" font-size="13" font-weight="700">Recover: add that toolset</text>
+  <path d="M 378 402 L 305 400" fill="none" stroke="#dc2626" stroke-width="2" marker-end="url(#aRose)"/>
+  <text x="330" y="392" fill="#94a3b8" font-size="9">missing tool?</text>
+  <!-- recovery loop back to model -->
+  <path d="M 175 433 L 175 452 L 480 452" fill="none" stroke="#2563eb" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <text x="210" y="447" fill="#64748b" font-size="9">expansion is permanent for this session · normal checks &amp; approvals still apply</text>
+
+  <!-- MULTI-AGENT strip (bottom) -->
+  <g font-family="'JetBrains Mono', monospace" font-size="10">
+    <rect x="40" y="500" width="1120" height="110" rx="12" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+    <text x="60" y="526" fill="#475569" font-size="11" font-weight="700" letter-spacing="2">MULTI-AGENT · EVERY PROFILE GETS ITS OWN ISOLATED ROUTER INSTANCE</text>
+
+    <rect x="70" y="545" width="320" height="48" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="1.5"/>
+    <text x="88" y="565" fill="#2563eb" font-size="10" letter-spacing="1">AGENT A · profile agentA</text>
+    <text x="88" y="583" fill="#475569" font-size="10">own routes · own grants · own learning state</text>
+
+    <rect x="450" y="545" width="320" height="48" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="1.5"/>
+    <text x="468" y="565" fill="#2563eb" font-size="10" letter-spacing="1">AGENT B · profile agentB</text>
+    <text x="468" y="583" fill="#475569" font-size="10">own routes · own grants · own learning state</text>
+
+    <rect x="830" y="545" width="310" height="48" rx="8" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="5 3"/>
+    <text x="848" y="565" fill="#475569" font-size="10" letter-spacing="1">NO CROSS-CONTAMINATION</text>
+    <text x="848" y="583" fill="#64748b" font-size="10">shared static metadata only · never workflow data</text>
   </g>
 
-  <!-- NARROW (green outcome) -->
-  <g>
-    <rect x="870" y="70" width="230" height="80" rx="8" fill="#0f172a"/>
-    <rect x="870" y="70" width="230" height="80" rx="8" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1.5"/>
-    <text x="888" y="96" fill="#34d399" font-size="9" letter-spacing="1.5">NARROW</text>
-    <text x="888" y="120" fill="#f1f5f9" font-size="14" font-weight="700">Likely toolsets only</text>
-    <text x="888" y="138" fill="#94a3b8" font-size="9">floor tools always stay loaded</text>
-  </g>
-
-  <!-- FAIL OPEN (amber outcome) -->
-  <g>
-    <rect x="870" y="235" width="230" height="85" rx="8" fill="#0f172a"/>
-    <rect x="870" y="235" width="230" height="85" rx="8" fill="rgba(120,53,15,0.3)" stroke="#fbbf24" stroke-width="1.5"/>
-    <text x="888" y="261" fill="#fbbf24" font-size="9" letter-spacing="1.5">FAIL OPEN</text>
-    <text x="888" y="285" fill="#f1f5f9" font-size="14" font-weight="700">Full tool surface</text>
-    <text x="888" y="303" fill="#94a3b8" font-size="9">no capability is ever removed</text>
-  </g>
-
-  <!-- 04 MAIN MODEL -->
-  <g>
-    <rect x="655" y="340" width="245" height="105" rx="8" fill="#0f172a"/>
-    <rect x="655" y="340" width="245" height="105" rx="8" fill="rgba(76,29,149,0.4)" stroke="#a78bfa" stroke-width="1.5"/>
-    <text x="673" y="367" fill="#a78bfa" font-size="9" letter-spacing="1.5">04 · MAIN MODEL</text>
-    <text x="673" y="391" fill="#f1f5f9" font-size="14" font-weight="700">Provider request</text>
-    <text x="673" y="411" fill="#94a3b8" font-size="9">receives the selected schema set —</text>
-    <text x="673" y="423" fill="#94a3b8" font-size="9">31% smaller input on fresh installs,</text>
-    <text x="673" y="435" fill="#94a3b8" font-size="9">up to 70% on full tool surfaces</text>
-  </g>
-
-  <!-- 05 RECOVER -->
-  <g>
-    <rect x="60" y="350" width="240" height="100" rx="8" fill="#0f172a"/>
-    <rect x="60" y="350" width="240" height="100" rx="8" fill="rgba(136,19,55,0.4)" stroke="#fb7185" stroke-width="1.5"/>
-    <text x="78" y="377" fill="#fb7185" font-size="9" letter-spacing="1.5">05 · RECOVER IF NEEDED</text>
-    <text x="78" y="401" fill="#f1f5f9" font-size="14" font-weight="700">Add the missing toolset</text>
-    <text x="78" y="421" fill="#94a3b8" font-size="9">automatic middleware + visible request_toolset</text>
-    <text x="78" y="438" fill="#64748b" font-size="9">proven in adversarial tests: task stays solvable</text>
-  </g>
-
-  <!-- SECURITY GRANT box (right bottom) -->
-  <g>
-    <rect x="870" y="430" width="270" height="90" rx="8" fill="#0f172a"/>
-    <rect x="870" y="430" width="270" height="90" rx="8" fill="rgba(136,19,55,0.4)" stroke="#fb7185" stroke-width="1.5" stroke-dasharray="4 4"/>
-    <text x="888" y="456" fill="#fb7185" font-size="9" letter-spacing="1.5">AUTHORIZATION GATE</text>
-    <text x="888" y="479" fill="#f1f5f9" font-size="12" font-weight="700">tools.override = explicit grant</text>
-    <text x="888" y="497" fill="#94a3b8" font-size="9">install ≠ authorization · no grant → router stays off</text>
-    <text x="888" y="512" fill="#64748b" font-size="8">repo content / prompts can never extend policy</text>
-  </g>
-  <!-- dashed line from auth gate to decide -->
-  <line x1="868" y1="475" x2="700" y2="190" stroke="#fb7185" stroke-width="1.5" stroke-dasharray="4 4"/>
-
-  <!-- ============ BADGES ============ -->
-  <g font-family="'JetBrains Mono', monospace" font-size="10" text-anchor="middle" letter-spacing="1.2">
-    <rect x="60"  y="575" width="150" height="30" rx="15" fill="rgba(6,78,59,0.4)" stroke="#34d399"/>
-    <text x="135" y="594" fill="#34d399">FAIL-OPEN SAFETY</text>
-
-    <rect x="230" y="575" width="145" height="30" rx="15" fill="rgba(15,23,42,0.6)" stroke="#334155"/>
-    <text x="302" y="594" fill="#94a3b8">SESSION-STICKY</text>
-
-    <rect x="395" y="575" width="170" height="30" rx="15" fill="rgba(15,23,42,0.6)" stroke="#334155"/>
-    <text x="480" y="594" fill="#94a3b8">MONOTONIC GROWTH</text>
-
-    <rect x="585" y="575" width="120" height="30" rx="15" fill="rgba(15,23,42,0.6)" stroke="#334155"/>
-    <text x="645" y="594" fill="#94a3b8">PLUGIN-ONLY</text>
-
-    <rect x="725" y="575" width="175" height="30" rx="15" fill="rgba(136,19,55,0.4)" stroke="#fb7185"/>
-    <text x="812" y="594" fill="#fb7185">EXPLICIT GRANT ONLY</text>
-  </g>
+  <!-- TRUST BADGES bottom right of svg? no — keep clean -->
 
 </svg>
 </div>
 
-<div class="badges">
-  <div class="badge g">✓ validated on fresh hermes installs</div>
-  <div class="badge c">→ github.com/Huy3ko/toolshed</div>
-  <div class="badge">v0.1.x · MIT · fork of hermes-token-router</div>
+<div class="trustbar">
+  <div class="trust">31% less input tokens on fresh Hermes installs (n=1 canary)</div>
+  <div class="trust">32–70% in controlled A/B workloads</div>
+  <div class="trust neutral">fail-open by design · recovery proven in adversarial tests</div>
+  <div class="trust neutral">github.com/Huy3ko/toolshed · MIT</div>
 </div>
 
 </div>
