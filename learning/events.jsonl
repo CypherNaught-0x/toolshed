@@ -1,0 +1,1 @@
+{"session_id": "20260823_182627_cc6d97", "signature": "unknown", "predicted": ["file", "memory", "skills", "terminal", "web"], "actual": ["file"], "precision": 0.2, "recall": 1.0, "warm_waste": 4, "cold_start": true, "gateway_restart": false, "profile_loaded": false, "store_hash": "c0e228220f4f", "prediction_hit": true, "ts": 1787502396.0608912}

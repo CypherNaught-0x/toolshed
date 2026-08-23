@@ -130,7 +130,7 @@ Profile count · Install method · doctor output · Expected vs Actual.
 |---|---|---|---|---|---|---|
 | Vela (default) | b41564d eingefroren in legacy-reference/ | ✅ pinned 6d1e2bc | ✅ | ✅ true | ✅ 0 Fehler | **produktiv aktiv, Routing live** |
 | hermes_christiane | kein Legacy-Router vorhanden | ✅ pinned 6d1e2bc | ✅ | ✅ true | manuell verifiziert* | produktiv aktiv |
-| hermes_helper | Canary + Long-Run Worker | v0.1.x Teststand | n/a (Test) | testweise | Canary-Pfad | Canary/Worker |
+| hermes_helper | Canary + Long-Run Worker | ✅ v0.1.2 pinned 6d1e2bc | ✅ | ✅ true | doctor: 1 Warnung (mode default), 0 Fehler | **produktiv aktiv + Canary** |
 
 **Neuer Befund D4 (doctor):** `doctor.sh` hat keinen Parameter für fremde
 Hermes-Homes (`--home`). Bei Multi-Agent-Setups mit eigenen Unix-Usern

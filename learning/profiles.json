@@ -1,0 +1,29 @@
+{
+  "unknown": {
+    "seen": 2,
+    "successful_runs": 0,
+    "toolsets": {
+      "file": {
+        "actually_used": 1,
+        "initially_present": 1,
+        "last_used": 1787502393
+      },
+      "memory": {
+        "initially_present": 1,
+        "last_used": 1787502388
+      },
+      "skills": {
+        "initially_present": 1,
+        "last_used": 1787502388
+      },
+      "terminal": {
+        "initially_present": 1,
+        "last_used": 1787502388
+      },
+      "web": {
+        "initially_present": 1,
+        "last_used": 1787502388
+      }
+    }
+  }
+}
