@@ -1,39 +1,12 @@
-[build-system]
-requires = ["setuptools>=68"]
-build-backend = "setuptools.build_meta"
-
-[project]
-name = "toolshed"
-version = "0.1.1"
-description = "An adaptive tool-surface proxy for Hermes — reduces repeated tool-schema overhead while preserving on-demand recovery."
-readme = "README.md"
-requires-python = ">=3.10"
-license = {text = "MIT"}
-authors = [{ name = "Toolshed contributors" }]
-keywords = ["hermes", "agent", "llm", "tools", "router", "token-optimization"]
-classifiers = [
-  "Development Status :: 4 - Beta",
-  "Intended Audience :: Developers",
-  "License :: OSI Approved :: MIT License",
-  "Programming Language :: Python :: 3",
-  "Topic :: Software Development :: Libraries",
-]
-
-[project.urls]
-Homepage = "https://github.com/TOOLSHED-ORG/toolshed"
-ADR-Docs = "https://github.com/TOOLSHED-ORG/toolshed/tree/main/adr"
-
-[tool.setuptools]
-package-dir = {"" = "src"}
-packages = ["toolshed", "toolshed.learning_store", "toolshed.telemetry_store"]
-
 [tool.ruff]
-line-length = 110
-target-version = "py310"
+# Fork erbt Python 3.9-kompatible Annotationen (UP006/UP045/UP035 bewusst offen
+# bis Hermes-Minimalversion geklärt ist); BLE001: fail-open try/except Exception
+# ist hier ARCHITEKTUR (ADR-0004: Router-Fehler = volle Toolfläche, nie weniger).
+[tool.ruff.lint]
+ignore = ["UP006", "UP045", "UP035", "UP037", "BLE001", "S110", "I001", "SIM102", "FURB192", "RUF013"]
 
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-
-[tool.pyright]
-pythonVersion = "3.10"
-typeCheckingMode = "basic"
+# F401: Die try/except-Doppelimporte (Paket vs. flacher Hermes-Loader) importieren
+# Namen bewusst weiter — der Loader-Pfad braucht sie im Modul-Namespace. Kein Fehler.
+[tool.ruff.lint.per-file-ignores]
+"src/toolshed/__init__.py" = ["F401"]
+"__init__.py" = ["F401"]
