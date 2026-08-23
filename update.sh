@@ -40,26 +40,27 @@ if [ -n "$TARGET_HOME" ]; then
 fi
 # Run-as wrapper: identity = target user when updating a foreign home, else current user
 AS_USER() {
-  if [ -n "$TARGET_USER" ] && [ "$(id -un)" != "$TARGET_USER" ]; then
-    sudo -u "$TARGET_USER" env HOME="$TH" bash -c "$*"
-  else
-    HOME="$TH" "$@"
+  if [ "$(id -un)" = "$TARGET_USER" ] || [ -z "$TARGET_USER" ]; then
+    env HOME="$TH" "$@"
+    return
   fi
+  # foreign user: run via sudo with explicit env; $1 must be an executable path
+  local CMD="$1"; shift
+  sudo -u "$TARGET_USER" env HOME="$TH" "$CMD" "$@"
 }
 
 say() { [ "$JSON" = "0" ] && echo "$@"; return 0; }
 jadd() { RESULT_LOG="$RESULT_LOG$1\n"; }
 
-HERMES_BIN="$(AS_USER command -v hermes || true)"
+TH="${TARGET_HOME:-$HOME}"
+HERMES_BIN="$(AS_USER bash -c 'command -v hermes' 2>/dev/null || true)"
 if [ -z "$HERMES_BIN" ]; then
-  for C in "${TARGET_HOME:+$TARGET_HOME}/src/hermes-agent/venv/bin/hermes" "${TARGET_HOME:+$TARGET_HOME}/hermes-agent/venv/bin/hermes" "$HOME/src/hermes-agent/venv/bin/hermes"; do
+  for C in "$TH/src/hermes-agent/venv/bin/hermes" "$TH/hermes-agent/venv/bin/hermes" "$HOME/src/hermes-agent/venv/bin/hermes"; do
     [ -x "$C" ] && HERMES_BIN="$C" && break
   done
 fi
-[ -n "$TARGET_HOME" ] && case "$HERMES_BIN" in "$HOME"*) HERMES_BIN="${HERMES_BIN/$HOME/$TARGET_HOME}" ;; esac
 [ -z "$HERMES_BIN" ] && say "✗ hermes not found" && jadd '{"ok":false,"reason":"no hermes"}' && [ "$JSON" = "1" ] && printf "%b" "$RESULT_LOG" && exit 1
 
-TH="${TARGET_HOME:-$HOME}"
 [ -z "$PROFILES" ] && PROFILES="default"
 IFS=',' read -r -a TARGETS <<< "$PROFILES"
 
@@ -87,7 +88,7 @@ for P in "${TARGETS[@]}"; do
 
   # ---------- 2. UPDATE ----------
   REFARG=(); [ -n "$REF" ] && REFARG=(--ref "$REF")
-  UPD_OUT=$(AS_USER "$HERMES_BIN" -p "$P" plugins install "$REPO" "${REFARG[@]+${REFARG[@]}}" --force 2>&1)
+  UPD_OUT=$(AS_USER "$HERMES_BIN" -p "$P" plugins install "$REPO" "${REFARG[@]+${REFARG[@]}}" --force 2>&1); say "DEBUG UPD: $UPD_OUT"
   if ! echo "$UPD_OUT" | grep -qE "✓ Installed|Installed"; then
     say "  ✗ update failed — restoring config from backup"
     cp "$BACKUP" "$CFG"
@@ -105,7 +106,9 @@ for P in "${TARGETS[@]}"; do
   if [ -n "$OLD_MODE" ]; then sed -i "s|^  mode:.*|  mode: $OLD_MODE|" "$NEW_CFG"; fi
 
   # ---------- 4. VERIFY ----------
-  GRANT_AFTER=$(AS_USER "$HERMES_BIN" -p "$P" plugins capabilities $PLUGIN_NAME 2>/dev/null | grep -c "tools.override: granted")
+  GRANT_CFG="${TH}/config.yaml"
+GRANT_AFTER=0
+[ -f "$GRANT_CFG" ] && grep -A2 "hermes-token-router:" "$GRANT_CFG" | grep -q "allow_tool_override: true" && GRANT_AFTER=1
   EN_AFTER=$(grep -m1 '^  enabled:' "$NEW_CFG" | awk '{print $2}')
   NEW_COMMIT=$(cd "$(dirname "$NEW_CFG")" && git rev-parse --short HEAD 2>/dev/null || echo "?")
 
