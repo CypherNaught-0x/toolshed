@@ -145,3 +145,27 @@ root+HOME-Umleitung (dokumentierter Migrationsweg für Multi-User-Setups).
 **Gateway-Restart für Christiane:** Das laufende Gateway (PID 2431886, seit
 Aug 21) muss neu starten, um Toolshed zu laden — beim nächsten geplanten
 Restart oder explizit.
+
+## Schritt 13 — Christiane entkoppelt (2026-08-23, ~18:35)
+
+**Befund:** Christianes `hermes`-Wrapper hatte einen Shebang auf das geteilte
+Venv unter /srv/companion/hermes_hugo (versteckte Kopplung — GPT-Audit).
+
+**Fix:** Wrapper auf ihr eigenes venv umgeschrieben
+(`/srv/companion/hermes_christiane/.hermes/hermes-agent/venv/bin/python3`),
+Backup unter `hermes.shared-venv-backup`.
+
+**Verifikation:**
+- `--version` über ihr CLI: v0.20.5, upstream fcbd1076, local 7fcb0120 (+6 carried)
+- Gateway-Restart: PID 2561700
+- Toolshed geladen: enabled=True, Grant allow
+- Routing-Smoke aus dem entkoppelten CLI: DECOUPLED-OK geschrieben
+
+**Ergebnis:** Alle drei Agents haben jetzt eigenständige Hermes-Runtimes:
+| Agent | Runtime | Toolshed |
+|---|---|---|
+| Vela | /srv/companion/hermes_hugo/.hermes/hermes-agent | v0.1.2 pinned |
+| hermes_christiane | /srv/companion/hermes_christiane/.hermes/hermes-agent | v0.1.2 pinned |
+| hermes_helper | /home/hermes_helper/src/hermes-agent | v0.1.2 pinned |
+
+Keine versteckten Venv-Kopplungen mehr.
