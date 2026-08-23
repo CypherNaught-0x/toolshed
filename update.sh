@@ -52,7 +52,7 @@ if [ -z "$HERMES_BIN" ]; then
     [ -x "$C" ] && HERMES_BIN="$C" && break
   done
 fi
-[ -n "$TARGET_HOME" ] && HERMES_BIN="${HERMES_BIN/$HOME/$TARGET_HOME}"
+[ -n "$TARGET_HOME" ] && case "$HERMES_BIN" in "$HOME"*) HERMES_BIN="${HERMES_BIN/$HOME/$TARGET_HOME}" ;; esac
 [ -z "$HERMES_BIN" ] && say "✗ hermes not found" && jadd '{"ok":false,"reason":"no hermes"}' && [ "$JSON" = "1" ] && printf "%b" "$RESULT_LOG" && exit 1
 
 TH="${TARGET_HOME:-$HOME}"
