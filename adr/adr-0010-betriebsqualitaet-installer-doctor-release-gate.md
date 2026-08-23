@@ -110,3 +110,16 @@ Profile count · Install method · doctor output · Expected vs Actual.
 - Keine Capability-Index-/Learning-/Heuristik-Ideen — der Router-Core hat
   keinen belegten Defekt. Neue Mechanismen erst bei realem Nutzer-Feedback.
 - D2 nicht in der Routinglogik patchen — gehört in Installer/Updater.
+
+---
+
+## Umsetzungsstand (2026-08-23)
+
+| Punkt | Status | Beleg |
+|---|---|---|
+| 1. Installer v1.1 | ✅ | `install.sh` — 3 Bugs (I1 Arg-Parsing, I2 Grant-Prompt in --yes, I3 Enable-Erkennung) im Helper-Lauf gefunden+gefixt; JSON/Exit-Codes verifiziert |
+| 2. Update/State-Preservation | ✅ | `update.sh` — Backup vor Update, enabled/mode/floor wiederhergestellt, Grant+enabled verifiziert, Restore bei Fehler; Helper-Lauf: enabled:true blieb, Grant blieb, Routing-Smoke grün. **D2 behoben** |
+| 3. doctor | ⏳ offen |
+| 4. Frischer Canary mit Installer-Weg | ⏳ offen |
+| 5. Release-Gate v0.1.2 | ⏳ offen |
+| 6. Issue Templates | ✅ 4 Templates + config.template.yaml |
