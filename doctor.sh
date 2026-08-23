@@ -85,12 +85,15 @@ else
     || warn "state dir NOT writable ($STATEDIR)"
 
   # 9. request_toolset available
-  RT=$("$HERMES_BIN" -p "$PROFILE" plugins list 2>/dev/null | grep -c "$PLUGIN_NAME.*enabled")
-  if [ "$RT" -ge 1 ]; then ok "plugin enabled (recovery path registered at load)"; else warn "plugin shows as not enabled in profile list"; fi
+  PLIST=$("$HERMES_BIN" -p "$PROFILE" plugins list --plain 2>/dev/null || true)
+  PLINE=$(echo "$PLIST" | grep -i "$PLUGIN_NAME" | head -1)
+  if [ -n "$PLINE" ] && echo "$PLINE" | grep -qiw "enabled"; then
+    ok "plugin enabled in profile listing (recovery path registered)"
+  else warn "plugin not shown as enabled in profile listing${PLINE:+: $PLINE}"; fi
 
-  # 10. config consistency: no duplicate enabled keys at same level
-  DUP=$(grep -c '^  enabled:' "$CFG" 2>/dev/null)
-  if [ "${DUP:-0}" -le 1 ]; then ok "config consistent (single global.enabled)"; else warn "multiple top-level 'enabled:' keys ($DUP) — check config manually"; fi
+  # 10. config consistency: global block has exactly one enabled key with a value
+  GEN=$(awk '/^global:/{f=1;next} /^[a-z]/{f=0} f && /^  enabled:/' "$CFG" 2>/dev/null | wc -l)
+  if [ "$GEN" -eq 1 ] && [ -n "$EN" ]; then ok "config consistent (global.enabled set once)"; else warn "global.enabled missing or duplicated ($GEN found)"; fi
 
   # 11. stale grant warning (grant exists but plugin dir missing)
   # stale-grant check: only look at the profile-local config (never the global
