@@ -22,6 +22,16 @@ PLUGIN_NAME="hermes-token-router"
 JSON=0; YES=0; REF=""; PROFILES=""
 RESULT_LOG=""
 
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --profile) PROFILES="$2"; shift 2 ;;
+    --yes|-y) YES=1; shift ;;
+    --ref) REF="$2"; shift 2 ;;
+    --json) JSON=1; shift ;;
+    *) shift ;;
+  esac
+done
+
 say() { if [ "$JSON" = "0" ]; then echo "$@"; fi }
 jadd() { RESULT_LOG="$RESULT_LOG$1\n"; }
 
@@ -71,7 +81,9 @@ fi
 [ ${#TARGETS[@]} -eq 0 ] && say "No profile selected." && exit 3
 
 # ---------- 3. explain + confirm the tools.override grant ----------
-if [ "$YES" = "0" ]; then
+if [ "$YES" = "1" ]; then
+  say "Grant: auto-accepted (--yes)"
+else
   echo ""
   echo "── Authorization ──────────────────────────────────────────────"
   echo "Toolshelf changes WHICH already-authorized tools are visible to"
@@ -93,11 +105,11 @@ for P in "${TARGETS[@]}"; do
   OUT=$("$HERMES_BIN" -p "$P" plugins install "$REPO" "${REFARG[@]+${REFARG[@]}}" --force 2>&1 | tail -3)
   say "$OUT"
 
-  ENA=$("$HERMES_BIN" -p "$P" plugins enable $PLUGIN_NAME --allow-tool-override 2>&1 | tail -1)
-  say "  grant: $ENA"
-  case "$ENA" in *Granted*|*"already enabled"*) : ;; *)
-      FAILED+=("$P:grant"); jadd "{\"profile\":\"$P\",\"step\":\"grant\",\"ok\":false}"; continue ;;
-  esac
+  ENA=$("$HERMES_BIN" -p "$P" plugins enable $PLUGIN_NAME --allow-tool-override 2>&1)
+  say "  grant: $(echo "$ENA" | tail -1)"
+  if ! echo "$ENA" | grep -qE "Granted|already enabled"; then
+      FAILED+=("$P:grant"); jadd "{\"profile\":\"$P\",\"step\":\"grant\",\"ok\":false}"; continue
+  fi
 
   CFG="/home/$(whoami)/.hermes/profiles/$P/plugins/$PLUGIN_NAME/config.yaml"
   [ -f "/home/$(whoami)/.hermes/plugins/$PLUGIN_NAME/config.yaml" ] && [ ! -f "$CFG" ] && \
