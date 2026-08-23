@@ -1,4 +1,6 @@
-"""Root shim for the flat Hermes plugin loader — delegates to the package copy."""
-import os, sys
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
-from toolshed.__about__ import __version__  # noqa: E402
+"""Version for the flat Hermes plugin loader (root directory, no package).
+
+Mirrors src/toolshed/__about__.py — keep in sync. pyproject.toml is the
+source of truth for packaged installs.
+"""
+__version__ = "0.1.1"
