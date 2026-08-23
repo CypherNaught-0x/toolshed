@@ -4,6 +4,30 @@ All notable changes to Toolshed are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning follows [SemVer](https://semver.org/) (0.x = pre-stable).
 
+## [0.1.5] — 2026-08-24
+
+### Fixed
+- `update.sh`: Hermes-Binary-Suchkette deckt jetzt beide kanonischen
+  Installations-Layouts ab (`~/.hermes/hermes-agent/` git-install und
+  `~/src/hermes-agent/` source-install), geordnet nach Layout-Wahrscheinlichkeit.
+  Kommentar dokumentiert die Layout-Konvention. Fund: Helper adversarial
+  review (2026-08-23), reproduziert von Vela gegen die realen Setups
+  hermes_christiane + hermes_helper; zweiter Helper-Review eingearbeitet
+  (Suchketten-Reihenfolge, Kommentar-Präzisierung).
+- `update.sh`: Erfolgsdetektion des Plugin-Updates präzisiert — matcht auf
+  installer-eigene Tokens (`✓ Installed`, `Plugin installed:`) statt breitem
+  `Installed`-Substring (falsch-positiv bei "Already installed") und ohne
+  Zeilenanfänger-Anker (Installer rahmt Output in Unicode-Boxen, Fund aus
+  v0.1.5-Review: `^`-Anker hatte 100% False-Negative-Rate).
+- `update.sh`: Multi-User-Bug geschlossen — ohne `--home` wird das Ziel-Home
+  jetzt aus dem ZIELUSER (`--user`, via getent) bestimmt statt aus `$HOME`
+  des Aufrufers. Bei `root + --user hermes_helper` zeigt TH jetzt korrekt auf
+  `/home/hermes_helper/.hermes` statt `/root/.hermes`. Fehlgeschlagene
+  Home-Auflösung (unbekannter User, nicht-existierendes Home) führt zu
+  hartem Exit 4 mit Hinweis auf `--home` — kein stiller Fallback. Alle 6
+  Testfälle der Auflösungsmatrix grün (eigenes Home, root+helper,
+  root+christiane, explizites --home gewinnt, unbekannter User, leeres Home).
+
 ## [0.1.1] — 2026-08-23
 
 ### Fixed

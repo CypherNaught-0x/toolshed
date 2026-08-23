@@ -52,10 +52,31 @@ AS_USER() {
 say() { [ "$JSON" = "0" ] && echo "$@"; return 0; }
 jadd() { RESULT_LOG="$RESULT_LOG$1\n"; }
 
-TH="${TARGET_HOME:-$HOME}"
+# TH: Hermes-Config-Root. Suchkette unten deckt beide Layouts ab:
+#   git-install:    <home>/.hermes/hermes-agent/venv/bin/hermes
+#   source-install: <home>/src/hermes-agent/venv/bin/hermes
+# Default-Auflösung (ohne --home): Bei --user wird das Home des ZIELUSERS aus
+# /etc/passwd geholt — nie $HOME des Aufrufers (Fix für Multi-User-Bug aus
+# Helper-Review 2026-08-23). Ohne --user gilt der eigene Kontext.
+TH="${TARGET_HOME:-}"
+if [ -z "$TH" ]; then
+  if [ -n "$TARGET_USER" ]; then
+    TH="$(getent passwd "$TARGET_USER" | cut -d: -f6)"
+    if [ -z "$TH" ] || [ "$TH" = "$TARGET_USER" ] || [ ! -d "$TH" ]; then
+      echo "✗ cannot resolve home for target user: $TARGET_USER — pass --home explicitly" >&2
+      exit 4
+    fi
+    TH="$TH/.hermes"
+  else
+    TH="$HOME/.hermes"
+  fi
+fi
 HERMES_BIN="$(AS_USER bash -c 'command -v hermes' 2>/dev/null || true)"
 if [ -z "$HERMES_BIN" ]; then
-  for C in "$TH/src/hermes-agent/venv/bin/hermes" "$TH/hermes-agent/venv/bin/hermes" "$HOME/src/hermes-agent/venv/bin/hermes"; do
+  for C in "$TH/hermes-agent/venv/bin/hermes" \
+           "$HOME/.hermes/hermes-agent/venv/bin/hermes" \
+           "$HOME/src/hermes-agent/venv/bin/hermes" \
+           "$TH/src/hermes-agent/venv/bin/hermes"; do
     [ -x "$C" ] && HERMES_BIN="$C" && break
   done
 fi
@@ -90,9 +111,14 @@ for P in "${TARGETS[@]}"; do
   REFARG=(); [ -n "$REF" ] && REFARG=(--ref "$REF")
   UPD_LOG="/tmp/toolshed_update_$P.log"
 AS_USER "$HERMES_BIN" -p "$P" plugins install "$REPO" ${REFARG+"${REFARG[@]}"} --force > "$UPD_LOG" 2>&1
-UPD_OUT=$(tail -5 "$UPD_LOG")
+UPD_OUT=$(cat "$UPD_LOG")
   say "  [debug] upd_out FULL: [$UPD_OUT]"
-  if ! echo "$UPD_OUT" | grep -qE "✓ Installed|Installed"; then
+  # Erfolg = exakte Token-Matches; "Installed"/"Location" können nicht als
+  # Substring falsch-matchen, weil beide Tokens installer-eigen sind und
+  # "Not Installed"/"Already installed" anders lauten. Kein ^-Anker: der
+  # Installer rahmt Output in Unicode-Boxen (│ … │), Zeilenanfänger wäre
+  # das Box-Zeichen (Helper-Fund, v0.1.5-Review).
+  if ! echo "$UPD_OUT" | grep -qE "✓ Installed|Plugin installed:"; then
     say "  ✗ update failed — restoring config from backup"
     cp "$BACKUP" "$CFG"
     FAILED+=("$P:update"); jadd "{\"profile\":\"$P\",\"step\":\"update\",\"ok\":false}"; continue
