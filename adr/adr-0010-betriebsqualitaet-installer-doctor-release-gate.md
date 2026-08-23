@@ -123,3 +123,25 @@ Profile count · Install method · doctor output · Expected vs Actual.
 | 4. Frischer Canary mit Installer-Weg | ✅ **KOMPLETT GRÜN** (2026-08-23, ~17:30): Reset auf null → Install aus GitHub (Scanner grün nach Supply-Chain-Hygiene) → Enable+Grant → enabled:true → doctor (0 Fehler) → Routing-Smoke ✅ → update.sh (State preserved, doctor grün) → Rollback auf v0.1.0-SHA ✅ → Uninstall/Reinstall via Installer ✅. Befund D2 bestätigt NUR beim rohen --force; update.sh verhindert ihn |
 | 5. Release-Gate v0.1.2 | ⏳ offen — alle Voraussetzungen außer dem finalen Tag erfüllt |
 | 6. Issue Templates | ✅ 4 Templates + config.template.yaml |
+
+## Schritt 12 — Produktive Migration (2026-08-23, ~18:30)
+
+| Agent | Legacy | Toolshed v0.1.2 | Grant | enabled | doctor | Status |
+|---|---|---|---|---|---|---|
+| Vela (default) | b41564d eingefroren in legacy-reference/ | ✅ pinned 6d1e2bc | ✅ | ✅ true | ✅ 0 Fehler | **produktiv aktiv, Routing live** |
+| hermes_christiane | kein Legacy-Router vorhanden | ✅ pinned 6d1e2bc | ✅ | ✅ true | manuell verifiziert* | produktiv aktiv |
+| hermes_helper | Canary + Long-Run Worker | v0.1.x Teststand | n/a (Test) | testweise | Canary-Pfad | Canary/Worker |
+
+**Neuer Befund D4 (doctor):** `doctor.sh` hat keinen Parameter für fremde
+Hermes-Homes (`--home`). Bei Multi-Agent-Setups mit eigenen Unix-Usern
+(Christianes Home: /srv/companion/hermes_christiane) läuft der doctor nur auf
+dem eigenen Home. Fix für v0.1.3: `--home <path>` Option.
+
+**Christianes Setup-Besonderheit:** Ihr Hermes läuft als eigener Unix-User mit
+eigenem .hermes-Home und eigenem Gateway-Prozess; das CLI wird über den
+Shebang auf das geteilte Hermes-venv geroutet. Installation/Enable liefen über
+root+HOME-Umleitung (dokumentierter Migrationsweg für Multi-User-Setups).
+
+**Gateway-Restart für Christiane:** Das laufende Gateway (PID 2431886, seit
+Aug 21) muss neu starten, um Toolshed zu laden — beim nächsten geplanten
+Restart oder explizit.

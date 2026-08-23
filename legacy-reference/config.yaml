@@ -1,0 +1,36 @@
+# Hermes Tool Router v2 configuration — disabled until explicitly enabled.
+global:
+  enabled: true
+  routing_scope: first_turn
+  expansion_mode: monotonic
+  shrink_mid_session: false
+  floor_toolsets: ["terminal", "file", "skills", "memory", "web"]
+  deterministic_rules_enabled: true
+  confidence_threshold: 0.90
+  router_timeout_ms: 750
+  router_hard_timeout_ms: 1200
+  fail_open: true
+  auto_recover_registered_tools: true
+  classifier:
+    enabled: false
+    provider: null  # defaults to direct deepseek when enabled
+    model: null     # defaults to deepseek-chat
+    base_url: null
+    api_key_env: null
+  metrics:
+    enabled: true
+    local_only: true
+    retain_days: 30
+
+profiles:
+  router-test:
+    enabled: true
+
+# --- Shadow learning bridge (V2) — HAUPTPROFIL, Shadow-only, fail-open ---
+shadow:
+  enabled: true
+  store_path: /srv/companion/hermes_hugo/.hermes/learning/profiles.json
+  events_path: /srv/companion/hermes_hugo/.hermes/learning/events.jsonl
+  floor_toolsets: ["terminal", "file", "skills", "memory", "web"]
+  max_warm: 8
+  channel: gateway
