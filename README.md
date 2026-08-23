@@ -1,6 +1,6 @@
 # Toolshed
 
-![How Toolshed works](docs/how-toolshed-works.png)
+![How Toolshed works](docs/toolshed-hero.png)
 
 
 **An adaptive tool-surface proxy for Hermes** — reduces repeated tool-schema
