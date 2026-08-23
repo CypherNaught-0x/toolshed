@@ -88,7 +88,10 @@ for P in "${TARGETS[@]}"; do
 
   # ---------- 2. UPDATE ----------
   REFARG=(); [ -n "$REF" ] && REFARG=(--ref "$REF")
-  UPD_OUT=$(AS_USER "$HERMES_BIN" -p "$P" plugins install "$REPO" "${REFARG[@]+${REFARG[@]}}" --force 2>&1); say "DEBUG UPD: $UPD_OUT"
+  UPD_LOG="/tmp/toolshed_update_$P.log"
+AS_USER "$HERMES_BIN" -p "$P" plugins install "$REPO" ${REFARG+"${REFARG[@]}"} --force > "$UPD_LOG" 2>&1
+UPD_OUT=$(tail -5 "$UPD_LOG")
+  say "  [debug] upd_out FULL: [$UPD_OUT]"
   if ! echo "$UPD_OUT" | grep -qE "✓ Installed|Installed"; then
     say "  ✗ update failed — restoring config from backup"
     cp "$BACKUP" "$CFG"
