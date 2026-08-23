@@ -46,3 +46,27 @@ First public-ready release.
 ### Not included (deliberately)
 - Capability-index / discovery mechanisms (control runs showed no causal
   benefit over native recovery — see ADR notes and experiment reports).
+
+## [0.1.4] — 2026-08-23
+
+### Added
+- `doctor --home <path>` — diagnose foreign Hermes homes (multi-user setups, D4)
+- `info` check level in doctor output (neither fail nor warn)
+- Robust `.hermes` dir detection via structure markers (plugins/, config.yaml)
+
+### Fixed
+- **Multi-user ownership**: update.sh runs all write steps as the target user
+  (`--home`/`--user` contract) — root never owns plugin files
+- doctor state-dir ownership detection for multi-user installs
+- doctor global.enabled consistency check counts only the global block
+- doctor plugins-list check uses `--plain` + name-independent matching
+- doctor stale-grant check no longer reads the global Hermes config
+- Supply-chain hygiene: pinned dev dependencies in CI, unpinned pip refs removed
+
+### Known limitations (unchanged)
+- Raw `hermes plugins install --force` can still reset plugin config; use `update.sh`
+- Gateway-restart / learning persistence not yet fully validated in systemd-user env
+
+**Validation:** fresh-install canary on upstream Hermes b766607b / v0.20.5 (MiniMax-M3);
+multi-user migration on independent runtime (hermes_christiane, own venv + gateway);
+all three agents (Vela, Christiane, Helper) productively running v0.1.2→v0.1.4 path.
