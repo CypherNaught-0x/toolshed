@@ -49,8 +49,9 @@ hermes -p default plugins enable hermes-token-router --allow-tool-override
 ```
 
 The grant lets Toolshed change **which already-authorized tools are visible to the model** — it does
-not create new permissions. Installation and authorization are deliberately separate steps:
-no grant, no routing.
+not create new permissions. Installation uses Hermes' default security scan; do not disable scanning.
+Installation and authorization are deliberately separate steps: no grant, no hook registration and
+no routing. The manifest declares `tools.override`, so capability diagnostics show it as declared.
 
 ```bash
 # 3. Turn routing on — in the installed plugin's config.yaml:
@@ -90,14 +91,20 @@ may change profile semantics in future versions, re-verify isolation after upstr
 
 ## Update
 
+Use Hermes' supported updater directly, or the small wrapper shipped here:
+
 ```bash
 hermes -p default plugins update hermes-token-router
+./update.sh --profile default
+./doctor.sh --profile default
 ```
 
-**Known behavior today:** a force reinstall/update can replace the plugin's `config.yaml`, which
-resets `global.enabled` back to `false`. After updating, check three things: version/commit,
-grant still present, `global.enabled: true`. A config-preserving updater and a `doctor` command
-are planned.
+Hermes fetches and scans the update before activation and surfaces capability-set changes for fresh
+consent. Before updating, copy your installed plugin `config.yaml` to a safe location. An update may
+replace plugin defaults, so afterwards verify the installed version, the `tools.override` grant and
+your profile's `enabled`/floor/exclusion settings. If validation fails, restore that config backup
+and reinstall the previous pinned commit as described below. The wrapper deliberately performs no
+privileged writes and does not bypass the scanner.
 
 ## Pinned installs & rollback
 
@@ -122,6 +129,35 @@ Hermes keeps working without Toolshed. The upstream uninstaller may leave the gr
 config — it doesn't keep anything running, but remove it if you don't want it retained for a possible
 reinstall.
 
+## Tool-usage audit and tuning
+
+Toolshed registers the native `/toolshed-audit` command on current Hermes versions:
+
+```text
+/toolshed-audit                         # deterministic report + model suggestions
+/toolshed-audit --days 90 --report      # deterministic/offline mode
+/toolshed-audit --days 30 --json --report
+```
+
+The report reads the active profile's Hermes `state.db` in read-only mode and queries only tool-call
+names/timestamps. It combines those counts with live registry metadata and profile-local recovery
+events to distinguish never-used, rarely-used, frequently-used, recovery-added, floor, eligible,
+routed and excluded toolsets. It never selects prompt, response, reasoning or tool-output content.
+The optional model receives only that deterministic metadata report and cannot apply changes.
+
+No command silently removes capability. After reviewing the report and suggestions, an explicit edit
+looks like:
+
+```text
+/toolshed-audit --report --apply-floor file,terminal,skills --apply-exclude image_gen --approve
+```
+
+Both an `--apply-*` option and `--approve` are required. The edit is profile-specific, preserves
+floor-over-exclusion precedence, refuses to run if fail-open or automatic recovery safety is
+disabled, validates the resulting YAML, creates a timestamped backup and displays a unified diff.
+Excluded toolsets leave the initial candidate set but remain available through recovery and full
+fail-open fallback. See [`docs/tool-usage-audit.md`](docs/tool-usage-audit.md).
+
 ## Security model
 
 Toolshed changes which tools the model sees, so its contract is explicit:
@@ -131,7 +167,10 @@ Toolshed changes which tools the model sees, so its contract is explicit:
 - **Recovery stays native:** missing registered capabilities can be recovered during the session.
 - **Floor policy is not content-controlled:** prompt or repository text cannot rewrite it.
 - **Routing ≠ permission:** making a tool visible never creates permissions the agent didn't have.
-- **Profile state stays isolated** across agents.
+- **Profile state stays isolated** across agents; local audit/recovery metadata lives under the active Hermes home.
+- **Classifier privacy is explicit:** the optional classifier is disabled by default. If enabled, up to
+  the first 1,500 characters of the user message are sent to its configured provider. Local usage
+  metrics do not contain message content.
 
 Adversarial testing covered manipulated repository content, read-only GitHub workflows, recovery,
 stale capabilities and multi-profile isolation. See [SECURITY.md](SECURITY.md) for the full model
@@ -143,31 +182,33 @@ and how to report vulnerabilities.
 - Less permanent tool visibility can reduce spontaneous exploration; required capabilities remained
   recoverable in all validated tests.
 - `plugins install owner/repo` follows the default branch, not the latest release tag.
-- Force reinstall currently resets `global.enabled` — see Update.
-- Validated against Hermes upstream commit `b766607b` / v0.20.5; newer versions may need revalidation.
-- A guided installer, config-preserving updater and `doctor` command are planned, not shipped.
+- An update can replace plugin-local defaults; keep a config backup and recheck activation — see Update.
+- Plugin slash commands are supported by current Hermes. Older Hermes builds without
+  `PluginContext.register_command` cannot expose `/toolshed-audit` and should be upgraded.
+- Hermes APIs continue to evolve; rerun `plugins doctor`, capability diagnostics and a routed smoke
+  call after upstream updates.
 
 ## Configuration
 
-Defaults are intentionally small:
+The shipped configuration is opt-in and conservative:
 
 ```yaml
 global:
-  enabled: true            # router on/off
-  mode: active             # active = route | shadow = observe only
-  floor_toolsets:          # protected: never pruned
-    - terminal
-    - file
-    - skills
-    - memory
-    - web
+  enabled: false           # set true globally, or override under profiles.<name>
+  floor_toolsets: [terminal, file, skills, memory, web]
+  excluded_toolsets: []    # initial routing candidates only; recovery remains available
+  fail_open: true
+  auto_recover_registered_tools: true
+  classifier:
+    enabled: false         # enabling may send the first 1,500 message characters
 
 shadow:
-  enabled: true            # profile-local learning bridge
+  enabled: false
 ```
 
-Keep `floor_toolsets` small — everything on it rides along in every request. Per-profile overrides
-live under `profiles.<name>` for advanced setups.
+There is no `mode` setting. Keep `floor_toolsets` small — every floor schema rides along in every
+request. Per-profile overrides live under `profiles.<name>`. Audit edits always target that active
+profile. Metrics and recovery-event logs are local to its Hermes home.
 
 ## For contributors
 

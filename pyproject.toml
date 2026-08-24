@@ -7,15 +7,19 @@ name = "toolshed"
 version = "0.1.5"
 description = "An adaptive tool-surface proxy for Hermes — reduces repeated tool-schema overhead while preserving on-demand recovery."
 readme = "README.md"
-license = { text = "MIT" }
+license = "MIT"
 authors = [
   { name = "Toolshed contributors (based on hermes-token-router by Jonathan Rivera)" }
 ]
 requires-python = ">=3.10"
+dependencies = ["PyYAML>=6"]
 
 [tool.setuptools]
 packages = ["toolshed", "toolshed.learning_store", "toolshed.telemetry_store"]
 package-dir = { "" = "src" }
+
+[tool.setuptools.package-data]
+toolshed = ["*.yaml"]
 
 [tool.ruff]
 # Fork erbt Python 3.9-kompatible Annotationen (UP006/UP045/UP035 bewusst offen
@@ -24,11 +28,5 @@ package-dir = { "" = "src" }
 [tool.ruff.lint]
 ignore = ["UP006", "UP045", "UP035", "UP037", "BLE001", "S110", "I001", "SIM102", "FURB192", "RUF013"]
 
-# F401: Die try/except-Doppelimporte (Paket vs. flacher Hermes-Loader) importieren
-# Namen bewusst weiter — der Loader-Pfad braucht sie im Modul-Namespace. Kein Fehler.
-[tool.ruff.lint.per-file-ignores]
-"src/toolshed/__init__.py" = ["F401"]
-"__init__.py" = ["F401"]
-
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruff==0.16.4", "PyYAML>=6", "pip-audit>=2.7"]
+dev = ["pytest>=8", "ruff==0.16.4", "pip-audit>=2.7", "build>=1.2", "tomli>=2; python_version < '3.11'"]

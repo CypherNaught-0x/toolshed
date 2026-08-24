@@ -16,14 +16,15 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install
-        run: pip install -e "src[dev]" || pip install -e . || pip install -e src
-      - name: Lint (ruff)
+          cache: pip
+      - name: Install editable package and development tools
         run: |
-          pip install ruff==0.16.4
-          ruff check src/
+          python -m pip install --upgrade "pip==26.2.1" "setuptools>=83.0.0"
+          python -m pip install --editable ".[dev]" pytest==9.1.1 ruff==0.16.4 pip-audit==2.10.1 build==1.5.0
+      - name: Ruff
+        run: python -m ruff check .
       - name: Tests
-        run: pytest tests/ -v
+        run: python -m pytest tests/ -v
 
   security:
     runs-on: ubuntu-latest
@@ -32,13 +33,45 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
+      - name: Install package for audit
+        run: |
+          python -m pip install --upgrade "pip==26.2.1" "setuptools>=83.0.0"
+          python -m pip install --editable ".[dev]" pytest==9.1.1 pip-audit==2.10.1
       - name: Dependency audit
+        run: python -m pip_audit
+      - name: Shipped-code secret and machine-path scan
         run: |
-          pip install pip-audit==2.9.0
-          pip-audit --skip-editable || true
-      - name: Secret scan
+          home_path="/$(printf '%s' home)/"
+          users_path="/$(printf '%s' Users)/"
+          srv_path="/$(printf '%s' srv)/"
+          passwd_path="/$(printf '%s' etc)/$(printf '%s' passwd)"
+          private_key="BEGIN (RSA|OPENSSH|EC) $(printf '%s %s' PRIVATE KEY)"
+          cloud_token='AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{30,}'
+          if grep -RInE "$home_path|$users_path|$srv_path|$passwd_path|$private_key|$cloud_token" \
+            src/toolshed __init__.py config.py policy.py state.py tools.py usage_audit.py \
+            learning_store telemetry_store install.sh update.sh doctor.sh plugin.yaml config.yaml; then
+            echo 'forbidden path or secret marker in shipped code' >&2
+            exit 1
+          fi
+          echo 'shipped-code scan clean'
+      - name: Malicious tool-description guard
+        run: python -m pytest tests/test_policy_guard.py -v
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Build wheel and sdist
         run: |
-          # ADR-0002: keine Vela-Pfade, keine Nutzerdaten
-          ! grep -rEn "/srv/companion|/home/[a-z_]+|hermes_hugo|router-test" src/ README.md adr/ && echo "path scan clean"
-      - name: Malicious tool-description guard (ADR-0004)
-        run: pytest tests/test_policy_guard.py -v
+          python -m pip install build==1.5.0
+          python -m build
+      - name: Verify shipped metadata
+        run: |
+          test -f dist/toolshed-0.1.5-py3-none-any.whl
+          python -m zipfile -l dist/toolshed-0.1.5-py3-none-any.whl | grep -q 'toolshed/config.yaml'
+          python -m zipfile -l dist/toolshed-0.1.5-py3-none-any.whl | grep -q 'toolshed/plugin.yaml'

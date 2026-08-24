@@ -1,8 +1,6 @@
 """Recovery-/Fail-open-Integrationstests (skizziert; E2E auf frischem Profil
 erfolgt manuell nach der Skill-Anleitung hermes-plugin-testing)."""
 
-import json
-
 
 def test_recovery_tool_schema_shape():
     """Das request_toolset-Schema muss validierbar sein und toolsets akzeptieren."""

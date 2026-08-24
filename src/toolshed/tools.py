@@ -211,6 +211,9 @@ def _cache_full_toolset(agent: Any) -> None:
 
     state._full_tool_defs = current_defs
     state._full_tool_names = current_names
+    if hasattr(agent, "enabled_toolsets"):
+        enabled = getattr(agent, "enabled_toolsets", None)
+        state._full_enabled_toolsets = list(enabled) if enabled is not None else None
 def _apply_predicted_tools(
     agent: Any,
     predicted_toolsets: Set[str],
@@ -310,59 +313,53 @@ def _restore_full_tools(agent: Any) -> None:
         agent.tools = list(state._full_tool_defs)
         if hasattr(agent, "valid_tool_names"):
             agent.valid_tool_names = set(state._full_tool_names)
-def _expand_toolset(agent: Any, toolset_name: str) -> None:
-    """Expand the agent's tool set to include a specific toolset."""
+        if hasattr(agent, "enabled_toolsets") and state._full_enabled_toolsets is not None:
+            agent.enabled_toolsets = list(state._full_enabled_toolsets)
+def _expand_toolset(agent: Any, toolset_name: str) -> bool:
+    """Materialize a toolset before committing monotonic state expansion."""
     try:
         from tools.registry import registry
 
-        # Get current predicted toolsets
         state = _get_router_state(agent)
+        ts_tools = set(registry.get_tool_names_for_toolset(toolset_name) or [])
+        if not ts_tools:
+            raise RuntimeError("registry resolved the toolset to no tools")
+
+        expanded_defs = list(getattr(agent, "tools", None) or [])
+        current_names = {
+            definition.get("function", {}).get("name", "") for definition in expanded_defs
+        }
+        current_names.discard("")
+
+        # Prefer definitions captured before narrowing, then ask the live
+        # registry for anything that was absent from that snapshot.
+        for definition in state._full_tool_defs or []:
+            name = definition.get("function", {}).get("name", "")
+            if name in ts_tools and name not in current_names:
+                expanded_defs.append(definition)
+                current_names.add(name)
+        missing = ts_tools - current_names
+        for definition in _get_tool_definitions_for_names(missing):
+            name = definition.get("function", {}).get("name", "")
+            if name in ts_tools and name not in current_names:
+                expanded_defs.append(definition)
+                current_names.add(name)
+
+        if not current_names.intersection(ts_tools):
+            raise RuntimeError("no tool definitions materialized for the toolset")
+
+        agent.tools = expanded_defs
+        if hasattr(agent, "valid_tool_names"):
+            agent.valid_tool_names = set(current_names)
         state.expand_surface({toolset_name})
         if state.predicted_toolsets is not None:
             state.predicted_toolsets.add(toolset_name)
         else:
             state.predicted_toolsets = {toolset_name}
-
-        # Get tool names for this toolset
-        ts_tools = set(registry.get_tool_names_for_toolset(toolset_name))
-
-        # If we have the full cached tool defs, filter from there
-        if state._full_tool_defs is not None:
-            # Get currently loaded tool names
-            current_names = set()
-            if hasattr(agent, "tools") and agent.tools:
-                current_names = {
-                    t.get("function", {}).get("name", "")
-                    for t in agent.tools
-                }
-
-            # Add the missing tools
-            expanded_defs = list(agent.tools) if hasattr(agent, "tools") and agent.tools else []
-            for td in state._full_tool_defs:
-                tn = td.get("function", {}).get("name", "")
-                if tn in ts_tools and tn not in current_names:
-                    expanded_defs.append(td)
-                    current_names.add(tn)
-
-            missing = ts_tools - current_names
-            for td in _get_tool_definitions_for_names(missing):
-                tn = td.get("function", {}).get("name", "")
-                if tn and tn not in current_names:
-                    expanded_defs.append(td)
-                    current_names.add(tn)
-
-            agent.tools = expanded_defs
-            agent.valid_tool_names = current_names
-        else:
-            # No cache — fall back to rebuilding from registry
-            all_tools = _get_all_tool_names()
-            if hasattr(agent, "valid_tool_names"):
-                agent.valid_tool_names.update(ts_tools & all_tools)
-
-        # Update enabled_toolsets
         if hasattr(agent, "enabled_toolsets") and agent.enabled_toolsets is not None:
             if toolset_name not in agent.enabled_toolsets:
                 agent.enabled_toolsets = list(agent.enabled_toolsets) + [toolset_name]
+        return True
 
     except Exception as exc:
         logger.warning(
@@ -370,6 +367,7 @@ def _expand_toolset(agent: Any, toolset_name: str) -> None:
             PLUGIN_NAME, toolset_name, exc,
         )
         _handle_full_fallback(agent)
+        return False
 def _handle_full_fallback(agent: Any) -> None:
     """Handle a full fallback — restore all tools from cache."""
     _restore_full_tools(agent)
