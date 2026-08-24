@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import os
 import re
 import time
@@ -346,11 +347,18 @@ def _extract_confidence(result: Any) -> Optional[float]:
         else:
             parsed = None
 
-        if parsed is None or parsed < 0:
+        # NaN compares false to every bound and infinity can otherwise pass
+        # through to a zero threshold.  Unknown or out-of-range confidence is
+        # uncertainty and must fail open.
+        if parsed is None or not math.isfinite(parsed) or parsed < 0:
             continue
 
-        if parsed > 1 and parsed <= 100:
+        # Accept ordinary percentage-style values, but reject near-one floats
+        # such as 1.01 rather than silently reinterpreting them as 1.01%.
+        if 2 <= parsed <= 100:
             parsed = parsed / 100.0
+        if not 0.0 <= parsed <= 1.0:
+            continue
 
         return parsed
 

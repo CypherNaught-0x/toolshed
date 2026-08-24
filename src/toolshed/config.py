@@ -28,8 +28,11 @@ def _load_config() -> dict:
 def _get_profile_config(cfg: dict) -> dict:
     """Return the resolved config for the current Hermes profile.
 
-    Merges: profile-specific settings → global defaults → built-in defaults.
+    Malformed YAML is treated as disabled configuration.  Routing must never
+    inherit a random profile or call mapping methods on scalar/list values.
     """
+    if not isinstance(cfg, dict):
+        return {"enabled": False, "_profile_name": "unknown"}
     # Determine active profile from env (in priority order).
     explicit_profile = os.environ.get("HERMES_PROFILE") or \
                        os.environ.get("HERMES_ACTIVE_PROFILE")
@@ -50,11 +53,17 @@ def _get_profile_config(cfg: dict) -> dict:
 
     # Look up per-profile config
     profiles_config = cfg.get("profiles", {})
+    if not isinstance(profiles_config, dict):
+        profiles_config = {}
     profile_cfg = profiles_config.get(profile_name, {})
+    if not isinstance(profile_cfg, dict):
+        return {"enabled": False, "_profile_name": profile_name}
 
     # Fall back to global
     global_cfg = cfg.get("global", {})
-    if profile_cfg.get("enabled", global_cfg.get("enabled", False)):
+    if not isinstance(global_cfg, dict):
+        global_cfg = {}
+    if profile_cfg.get("enabled", global_cfg.get("enabled", False)) is True:
         result = dict(global_cfg)
         result.update(profile_cfg)
         result["_profile_name"] = profile_name

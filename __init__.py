@@ -91,6 +91,7 @@ try:
         _resolve_toolset_to_tool_names,
         _restore_full_tools,
     )
+    from .usage_audit import make_command_handler, record_recovery_event
 except ImportError:  # pragma: no cover - direct loader fallback
     from config import (
         CONFIG_FILE,
@@ -147,10 +148,65 @@ except ImportError:  # pragma: no cover - direct loader fallback
         _resolve_toolset_to_tool_names,
         _restore_full_tools,
     )
+    from usage_audit import make_command_handler, record_recovery_event
+
+# These imports form the flat-loader and package-loader export surface.
+__all__ = [
+    "ACTION_HINT_RE",
+    "CONFIG_FILE",
+    "DEFAULT_ROUTER_MODEL",
+    "DEFAULT_ROUTER_PROVIDER",
+    "PLAIN_ANSWER_RE",
+    "PLUGIN_NAME",
+    "RECOVERY_TOOLSET",
+    "RECOVERY_TOOLSET_CHOICES",
+    "RECOVERY_TOOL_NAME",
+    "RECOVERY_TOOL_SCHEMA",
+    "ROUTER_STATE_ATTR",
+    "ROUTER_SYSTEM_PROMPT",
+    "TOOLSET_DESCRIPTIONS",
+    "TOOLSET_INTENT_RULES",
+    "RouterState",
+    "__version__",
+    "_apply_predicted_tools",
+    "_build_toolset_description_block",
+    "_cache_full_toolset",
+    "_detect_missing_toolset",
+    "_drop_agent_ref",
+    "_ensure_recovery_tool",
+    "_expand_toolset",
+    "_extract_confidence",
+    "_filter_tool_definitions",
+    "_get_agent_from_stack",
+    "_get_agent_ref",
+    "_get_all_tool_names",
+    "_get_available_toolsets",
+    "_get_classifier_connection",
+    "_get_profile_config",
+    "_get_recovery_tool_definition",
+    "_get_router_client",
+    "_get_router_model",
+    "_get_router_provider",
+    "_get_router_state",
+    "_get_tool_definitions_for_names",
+    "_handle_full_fallback",
+    "_infer_toolset_from_tool",
+    "_is_classifier_enabled",
+    "_is_router_active",
+    "_load_config",
+    "_predict_toolsets_by_rules",
+    "_predict_toolsets_via_llm",
+    "_resolve_toolset_to_tool_names",
+    "_restore_full_tools",
+    "_store_agent_ref",
+    "build_recovery_tool_schema",
+    "make_command_handler",
+    "record_recovery_event",
+]
 
 try:
     from .__about__ import __version__
-except ImportError:  # flat Hermes plugin loader
+except ImportError:  # flat Hermes plugin loader (root dir, no package)
     from __about__ import __version__
 
 logger = logging.getLogger(__name__)
@@ -255,10 +311,42 @@ def _route_tool_surface(source: str, agent: Any = None, **kwargs: Any) -> Option
     if not profile_cfg.get("enabled", False):
         return complete()
 
-    decline_chars = profile_cfg.get("long_message_decline_chars", 2000)
-    short_bypass_chars = profile_cfg.get("short_message_bypass_chars", 0)
-    floor_toolsets = set(profile_cfg.get("floor_toolsets", ["terminal", "file", "web"]))
-    confidence_threshold = float(profile_cfg.get("confidence_threshold", 0.0))
+    try:
+        decline_chars = int(profile_cfg.get("long_message_decline_chars", 2000))
+        short_bypass_chars = int(profile_cfg.get("short_message_bypass_chars", 0))
+        confidence_threshold = float(profile_cfg.get("confidence_threshold", 0.0))
+    except (TypeError, ValueError, OverflowError):
+        logger.warning("%s: malformed routing limits; keeping full tool surface", PLUGIN_NAME)
+        _restore_full_tools(agent)
+        state.active = False
+        state.predicted_toolsets = None
+        return complete()
+    raw_floor = profile_cfg.get("floor_toolsets", ["terminal", "file", "web"])
+    if not isinstance(raw_floor, (list, tuple, set)) or not all(
+        isinstance(name, str) and name.strip() for name in raw_floor
+    ):
+        logger.warning("%s: malformed floor_toolsets; keeping full tool surface", PLUGIN_NAME)
+        _restore_full_tools(agent)
+        state.active = False
+        state.predicted_toolsets = None
+        return complete()
+    floor_toolsets = {name.strip() for name in raw_floor}
+    raw_excluded = profile_cfg.get("excluded_toolsets", [])
+    if not isinstance(raw_excluded, (list, tuple, set)) or not all(
+        isinstance(name, str) and name.strip() for name in raw_excluded
+    ):
+        logger.warning("%s: malformed excluded_toolsets; keeping full tool surface", PLUGIN_NAME)
+        _restore_full_tools(agent)
+        state.active = False
+        state.predicted_toolsets = None
+        return complete()
+    excluded_toolsets = {name.strip() for name in raw_excluded} - floor_toolsets
+    if not 0.0 <= confidence_threshold <= 1.0:
+        logger.warning("%s: malformed confidence threshold; keeping full tool surface", PLUGIN_NAME)
+        _restore_full_tools(agent)
+        state.active = False
+        state.predicted_toolsets = None
+        return complete()
     router_model = _get_router_model(profile_cfg)
     router_provider = _get_router_provider(profile_cfg)
     classifier_base_url, classifier_api_key_env = _get_classifier_connection(profile_cfg)
@@ -313,6 +401,9 @@ def _route_tool_surface(source: str, agent: Any = None, **kwargs: Any) -> Option
 
     if not available:
         return complete()
+    # Exclusions affect only initial candidate routing. Protected floor tools
+    # always win, and the full registry remains available to recovery/fail-open.
+    available = (set(available) - excluded_toolsets) | (set(available) & floor_toolsets)
 
     predicted: Optional[Set[str]]
     deterministic_enabled = bool(profile_cfg.get("deterministic_rules_enabled", True))
@@ -402,7 +493,7 @@ def _route_tool_surface(source: str, agent: Any = None, **kwargs: Any) -> Option
     # Store agent-scoped state for post_tool_call/request_toolset.
     state.active = True
     state.predicted_toolsets = predicted
-    state.set_initial_surface(set(predicted) | floor_toolsets)
+    state.set_initial_surface((set(predicted) | floor_toolsets) & available)
     state._fallback_triggered = False
     state._retry_pending = False
 
@@ -466,9 +557,10 @@ def request_toolset_handler(args: Dict[str, Any], **kwargs: Any) -> str:
     requested_tool = str(args.get("tool_name") or "").strip()
     reason = str(args.get("reason") or "").strip()[:200]
 
+    registry_ready = False
     try:
         from tools.registry import registry
-        available = set(registry.get_registered_toolset_names())
+        available = set(registry.get_registered_toolset_names() or [])
         if requested_tool:
             owner = _infer_toolset_from_tool(requested_tool, registry)
             if owner:
@@ -476,8 +568,18 @@ def request_toolset_handler(args: Dict[str, Any], **kwargs: Any) -> str:
         requested_toolsets = {
             registry.get_toolset_alias_target(name) or name for name in requested_toolsets
         }
-    except Exception:
+        registry_ready = True
+    except Exception as exc:
+        logger.warning("%s: recovery registry unavailable: %s", PLUGIN_NAME, exc)
         available = set()
+
+    if not registry_ready:
+        return json.dumps({
+            "ok": False,
+            "error": "tool registry unavailable; full tool surface retained",
+            "requested_toolsets": sorted(requested_toolsets),
+            "requested_tool": requested_tool,
+        })
 
     if not requested_toolsets:
         return json.dumps({
@@ -487,7 +589,7 @@ def request_toolset_handler(args: Dict[str, Any], **kwargs: Any) -> str:
             "requested_tool": requested_tool,
         })
 
-    unknown = requested_toolsets - available if available else set()
+    unknown = requested_toolsets - available
     if unknown:
         bad = sorted(unknown)[0]
         suggestions = difflib.get_close_matches(bad, sorted(available), n=5)
@@ -514,7 +616,18 @@ def request_toolset_handler(args: Dict[str, Any], **kwargs: Any) -> str:
     if state._full_tool_defs is None:
         _cache_full_toolset(agent)
     for toolset_name in sorted(requested_toolsets):
-        _expand_toolset(agent, toolset_name)
+        if not _expand_toolset(agent, toolset_name):
+            return json.dumps({
+                "ok": False,
+                "error": f"failed to expand toolset: {toolset_name}; full tool surface restored",
+                "requested_toolsets": sorted(requested_toolsets),
+                "requested_tool": requested_tool,
+            })
+        record_recovery_event(
+            toolset_name,
+            source="request_toolset",
+            session_id=session_id,
+        )
     _ensure_recovery_tool(agent)
     state.active = True
     state._retry_pending = False
@@ -558,9 +671,11 @@ def tool_request_middleware(**kwargs: Any) -> Optional[Dict[str, Any]]:
         toolset_name = None
     if not toolset_name:
         return None
-    _expand_toolset(agent, toolset_name)
+    if not _expand_toolset(agent, toolset_name):
+        return None
     if tool_name not in (getattr(agent, "valid_tool_names", set()) or set()):
         return None
+    record_recovery_event(toolset_name, source="middleware", session_id=session_id)
     logger.info(
         "%s: middleware recovery added toolset=%s for tool=%s session=%s",
         PLUGIN_NAME,
@@ -598,6 +713,31 @@ def register(ctx) -> None:
     _recovery_middleware_registered = False
     _recovery_tool_registered = False
 
+    # Toolshed mutates the model-visible surface in place, so it treats the
+    # declared tools.override capability as an explicit product authorization
+    # boundary even though it does not replace a built-in registration.
+    try:
+        if not ctx.has_capability("tools.override"):
+            logger.error("%s: tools.override not granted; plugin remains inactive", PLUGIN_NAME)
+            return
+    except Exception as exc:
+        logger.error("%s: capability state unavailable; plugin remains inactive: %s", PLUGIN_NAME, exc)
+        return
+
+    def resolve_audit_state() -> Optional[RouterState]:
+        agent = _get_agent_from_stack() or _get_agent_ref()
+        return _get_router_state(agent) if agent is not None else None
+
+    try:
+        ctx.register_command(
+            "toolshed-audit",
+            make_command_handler(ctx, CONFIG_FILE, resolve_audit_state),
+            description="Analyze profile-local tool usage and suggest safe routing tuning.",
+            args_hint="[--days N] [--report]",
+        )
+    except Exception as exc:
+        logger.warning("%s: toolshed-audit command unavailable: %s", PLUGIN_NAME, exc)
+
     try:
         from hermes_cli.plugins import VALID_HOOKS
         if "pre_turn_context_build" in VALID_HOOKS:
@@ -617,7 +757,7 @@ def register(ctx) -> None:
     try:
         from tools.registry import registry
         recovery_schema = build_recovery_tool_schema(set(registry.get_registered_toolset_names()))
-        registry.register(
+        registration = ctx.register_tool(
             name=RECOVERY_TOOL_NAME,
             toolset=RECOVERY_TOOLSET,
             schema=recovery_schema,
@@ -625,7 +765,7 @@ def register(ctx) -> None:
             description=recovery_schema["description"],
             emoji="",
         )
-        _recovery_tool_registered = True
+        _recovery_tool_registered = registration is not None
     except Exception as exc:
         logger.warning("%s: failed to register recovery tool: %s", PLUGIN_NAME, exc)
 
@@ -727,8 +867,6 @@ def post_tool_call(**kwargs: Any) -> Optional[Dict[str, Any]]:
             _handle_full_fallback(agent)
             return None
 
-        # If this toolset is already in the predicted set, something else
-        # is wrong — don't expand.
         if (state.predicted_toolsets is not None
                 and missing_toolset in state.predicted_toolsets):
             logger.debug(
@@ -736,11 +874,9 @@ def post_tool_call(**kwargs: Any) -> Optional[Dict[str, Any]]:
                 "likely a check_fn issue, not router",
                 PLUGIN_NAME, tool_name, missing_toolset,
             )
-            # Still expand since the tool isn't available
-            _expand_toolset(agent, missing_toolset)
-        else:
-            # Expand the predicted set with the missing toolset
-            _expand_toolset(agent, missing_toolset)
+        if not _expand_toolset(agent, missing_toolset):
+            return None
+        record_recovery_event(missing_toolset, source="post_tool_call", session_id=session_id)
 
         # Signal retry by setting the flag — the agent loop will re-read
         # agent.tools before the next API call

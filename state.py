@@ -43,6 +43,7 @@ class RouterState:
         self._fallback_triggered: bool = False
         self._full_tool_defs: Optional[List[Dict[str, Any]]] = None
         self._full_tool_names: Set[str] = set()
+        self._full_enabled_toolsets: Optional[List[str]] = None
         self._retry_pending: bool = False
         self.routed_turn_id: Optional[str] = None
         self.routed_source: Optional[str] = None
@@ -79,6 +80,7 @@ class RouterState:
         self._fallback_triggered = False
         self._full_tool_defs = None
         self._full_tool_names = set()
+        self._full_enabled_toolsets = None
         self._retry_pending = False
         self.routed_turn_id = None
         self.routed_source = None
@@ -124,12 +126,14 @@ def _drop_agent_ref(session_id: str) -> None:
 
 
 def _get_agent_ref(session_id: Optional[str] = None) -> Any:
-    """Resolve by session; ambiguous global lookup deliberately returns None."""
+    """Resolve by session without guessing across concurrent sessions.
+
+    A session-less lookup is retained only for legacy direct-loader agents that
+    have no session mapping.  Once any identified session is cached, callers
+    must provide that identity (or use the live hook stack).
+    """
     if session_id:
         return _agent_refs.get(str(session_id))
-    unique = {id(agent): agent for agent in _agent_refs.values()}
-    if len(unique) == 1:
-        return next(iter(unique.values()))
-    if not unique:
-        return _agent_ref
-    return None
+    if _agent_refs:
+        return None
+    return _agent_ref

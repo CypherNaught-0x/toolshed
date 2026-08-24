@@ -14,7 +14,7 @@ Thanks for your interest in contributing to Toolshed!
 3. Run the test suite before pushing:
    ```bash
    python -m venv .venv
-   .venv/bin/pip install -e ".[dev]"
+   .venv/bin/pip install -e ".[dev]" ruff==0.16.4 pytest==8.3.5 pip-audit==2.9.0
    # dev tools (pytest, ruff) come from the [dev] extra
    .venv/bin/pytest tests/ -q
    .venv/bin/ruff check src/

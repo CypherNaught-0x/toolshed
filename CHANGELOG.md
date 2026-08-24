@@ -4,6 +4,22 @@ All notable changes to Toolshed are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning follows [SemVer](https://semver.org/) (0.x = pre-stable).
 
+## [Unreleased]
+
+### Added
+- Native `/toolshed-audit` command for metadata-only, profile-local tool-usage reporting,
+  host-model tuning suggestions, and explicit backed-up/validated configuration edits.
+- Deterministic offline coverage for authorization, routing uncertainty, profile isolation,
+  monotonic recovery, configuration loading, manifests, package metadata, and SQLite analysis.
+
+### Changed
+- Installation and updates now use Hermes' scan-aware plugin commands; dangerous privileged
+  updater behavior and machine-specific paths were removed.
+- CI now strictly runs editable installation, Ruff, tests, dependency audit, shipped-code scanning,
+  and package-content verification. Plugin/config/version metadata now agree on 0.1.5.
+- The plugin declares and fail-closes on `tools.override`; classifier, shadow learning, and routing
+  remain opt-in, with privacy and rollback semantics documented.
+
 ## [0.1.5] — 2026-08-24
 
 ### Fixed
